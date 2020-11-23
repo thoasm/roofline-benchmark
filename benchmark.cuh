@@ -7,6 +7,9 @@
 
 #include "helper.cuh"
 
+#include <ginkgo/core/base/range.hpp>
+#include <core/base/accessors.hpp>
+
 #define USE_ARRAY 0
 
 template <typename T, std::int32_t block_size, std::int32_t outer_work_iters,
@@ -17,19 +20,19 @@ __global__ void benchmark_kernel(T input, T *__restrict__ data) {
     static_assert(compute_iters >= 0, "compute_iters must be positive or zero!");
     const std::int32_t idx =
         blockIdx.x * block_size * inner_work_iters + threadIdx.x;
-    const std::int32_t big_stride = gridDim.x * block_size * inner_work_iters;
+    const std::int32_t outer_stride = gridDim.x * block_size * inner_work_iters;
 
 #if USE_ARRAY
     static_assert(inner_work_iters % 2 == 0,
                   "inner_work_iters must be dividable by 2!");
     T reg[inner_work_iters];
-    for (std::int32_t f = 0; f < outer_work_iters; ++f) {
+    for (std::int32_t o = 0; o < outer_work_iters; ++o) {
 #pragma unroll
-        for (std::int32_t g = 0; g < inner_work_iters; ++g) {
-            reg[g] = data[idx + g * block_size + f * big_stride];
+        for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+            reg[i] = data[idx + i * block_size + o * outer_stride];
 #pragma unroll
             for (std::int32_t c = 0; c < compute_iters; ++c) {
-                reg[g] = reg[g] * reg[g] + input;
+                reg[i] = reg[i] * reg[i] + input;
             }
         }
         T reduced{};
@@ -39,16 +42,16 @@ __global__ void benchmark_kernel(T input, T *__restrict__ data) {
         }
         // Intentionally is never true
         if (reduced == static_cast<T>(-1)) {
-            data[idx + f * big_stride] = reduced;
+            data[idx + o * outer_stride] = reduced;
         }
     }
 
 #else
     T reg{1};
-    for (std::int32_t f = 0; f < outer_work_iters; ++f) {
+    for (std::int32_t o = 0; o < outer_work_iters; ++o) {
 #pragma unroll
-        for (std::int32_t g = 0; g < inner_work_iters; ++g) {
-            T mem = data[idx + g * block_size + f * big_stride];
+        for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+            T mem = data[idx + i * block_size + o * outer_stride];
             reg = mem * input + reg;
 #pragma unroll
             for (std::int32_t c = 0; c < compute_iters; ++c) {
@@ -57,7 +60,65 @@ __global__ void benchmark_kernel(T input, T *__restrict__ data) {
         }
         // Intentionally is never true
         if (reg == static_cast<T>(-1)) {
-            data[idx + f * big_stride] = reg;
+            data[idx + o * outer_stride] = reg;
+        }
+    }
+#endif  // USE_ARRAY
+}
+
+// Specialization for Accessor
+template <typename Accessor, std::int32_t block_size, std::int32_t outer_work_iters,
+          std::int32_t inner_work_iters, std::int32_t compute_iters>
+__global__ void benchmark_kernel(std::int32_t i_input, Accessor acc) {
+    static_assert(block_size > 0, "block_size must be positive!");
+    static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
+    static_assert(compute_iters >= 0, "compute_iters must be positive or zero!");
+    const std::int32_t idx =
+        blockIdx.x * block_size * inner_work_iters + threadIdx.x;
+    const std::int32_t outer_stride = gridDim.x * block_size * inner_work_iters;
+    using value_type = typename Accessor::accessor::arithmetic_type;
+
+    const auto input = static_cast<value_type>(i_input);
+
+#if USE_ARRAY
+    static_assert(inner_work_iters % 2 == 0,
+                  "inner_work_iters must be dividable by 2!");
+    value_type reg[inner_work_iters];
+    for (std::int32_t o = 0; o < outer_work_iters; ++o) {
+#pragma unroll
+        for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+            reg[i] = acc(idx + i * block_size + o * outer_stride);
+#pragma unroll
+            for (std::int32_t c = 0; c < compute_iters; ++c) {
+                reg[i] = reg[i] * reg[i] + input;
+            }
+        }
+        value_type reduced{};
+#pragma unroll
+        for (std::int32_t i = 0; i < inner_work_iters; i += 2) {
+            reduced = reg[i] * reg[i + 1] + reduced;
+        }
+        // Intentionally is never true
+        if (reduced == static_cast<value_type>(-1)) {
+            acc(idx + o * outer_stride) = reduced;
+        }
+    }
+
+#else
+    value_type reg{1};
+    for (std::int32_t o = 0; o < outer_work_iters; ++o) {
+#pragma unroll
+        for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+            value_type mem = acc(idx + i * block_size + o * outer_stride);
+            reg = mem * input + reg;
+#pragma unroll
+            for (std::int32_t c = 0; c < compute_iters; ++c) {
+                reg = reg * reg + input;
+            }
+        }
+        // Intentionally is never true
+        if (reg == static_cast<value_type>(-1)) {
+            acc(idx + o * outer_stride) = reg;
         }
     }
 #endif  // USE_ARRAY
@@ -146,17 +207,33 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr) {
                         info.inner_work_iters *
                         static_cast<std::size_t>(info.compute_iters + 1) * 2;
 #endif
+
+    auto i_input = static_cast<std::int32_t>(input);
+    gko::dim<1> size{num_elems};
+    using accessor = gko::accessor::reduced_row_major<1, T, T>;
+    using range = gko::range<accessor>;
+    auto acc = range(size, data_ptr);
     // Warmup
+    //*
     benchmark_kernel<T, block_size, outer_work_iters, inner_work_iters,
                      compute_iters><<<grid_, block_>>>(input, data_ptr);
+    /*/
+    benchmark_kernel<range, block_size, outer_work_iters, inner_work_iters,
+                     compute_iters><<<grid_, block_>>>(i_input, acc);
+    //*/
     CUDA_CALL(cudaDeviceSynchronize());
 
     double time_{0};
     for (int i = 0; i < average_iters; ++i) {
         cuda_timer timer_;
         timer_.start();
+        //*
         benchmark_kernel<T, block_size, outer_work_iters, inner_work_iters,
                          compute_iters><<<grid_, block_>>>(input, data_ptr);
+        /*/
+        benchmark_kernel<range, block_size, outer_work_iters, inner_work_iters,
+                         compute_iters><<<grid_, block_>>>(i_input, acc);
+        //*/
         timer_.stop();
         time_ += timer_.get_time();
     }

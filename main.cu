@@ -114,9 +114,7 @@ int main() {
 
     constexpr type_list<double, float, int> type_list;
     constexpr val_list<i_type, 4> outer_list;
-    constexpr val_list<i_type, 16> inner_list;
-    // constexpr val_list<i_type, 0, 1, 2, 3, 4, 8, 16, 32, 64, 128, 256>
-    // compute_list;
+    constexpr val_list<i_type, 8> inner_list;
     constexpr val_list<i_type, 0, 1, 2, 3, 4, 8, 16, 32, 64, 128, 256> compute_list;
 
     std::random_device r_device;
