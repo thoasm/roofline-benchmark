@@ -47,7 +47,6 @@ struct type_list {};
 template <typename T, T... Vals>
 struct val_list {};
 
-
 // For compute resolution
 template <std::int32_t block_size, typename T, typename IT, IT outer, IT inner,
           typename... Args>
@@ -113,9 +112,10 @@ int main() {
     constexpr std::int32_t block_size = 256;
 
     constexpr type_list<double, float, int> type_list;
-    constexpr val_list<i_type, 4> outer_list;
+    constexpr val_list<i_type, 1> outer_list;
     constexpr val_list<i_type, 8> inner_list;
-    constexpr val_list<i_type, 0, 1, 2, 3, 4, 8, 16, 32, 64, 128, 256> compute_list;
+    constexpr val_list<i_type, 0, 1, 2, 3, 4, 8, 16, 32, 64, 128, 256>
+        compute_list;
 
     std::random_device r_device;
     std::default_random_engine engine(r_device());
@@ -125,7 +125,8 @@ int main() {
     cudaSetDevice(0);
 
     std::cout << "num_elems = " << num_elems << "; Array is "
-              << (USE_ARRAY ? "used" : "NOT used") << '\n';
+              << (USE_ARRAY ? "used" : "NOT used") << "; "
+              << (USE_ACCESSOR ? "Accessor" : "Pointer") << '\n';
 
     c_memory<double> data(
         num_elems);  // MUST be the largest type of all `type_list` types

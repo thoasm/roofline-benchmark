@@ -1,26 +1,44 @@
 #pragma once
 
 #include <cinttypes>
+#include <core/base/accessors.hpp>
+#include <ginkgo/core/base/range.hpp>
 #include <random>
 #include <string>
+#include <type_traits>
 #include <typeinfo>
 
 #include "helper.cuh"
 
-#include <ginkgo/core/base/range.hpp>
-#include <core/base/accessors.hpp>
-
 #define USE_ARRAY 0
+#define USE_ACCESSOR 0
+
+/**
+ * Note: when changing the `input` type to int, followed by casting it to `T` /
+ * `value_type`, both the Accessor and the Pointer implementation are
+ * significantly faster for double computations 128 and 256 compared to keeping
+ * `T input`.
+ * Currently, it is unclear why that happens!
+ */
 
 template <typename T, std::int32_t block_size, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-__global__ void benchmark_kernel(T input, T *__restrict__ data) {
+__global__ void benchmark_kernel(const T input, T *__restrict__ data) {
     static_assert(block_size > 0, "block_size must be positive!");
     static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
-    static_assert(compute_iters >= 0, "compute_iters must be positive or zero!");
+    static_assert(compute_iters >= 0,
+                  "compute_iters must be positive or zero!");
+    /*
     const std::int32_t idx =
         blockIdx.x * block_size * inner_work_iters + threadIdx.x;
+    const std::int32_t inner_stride = block_size;
     const std::int32_t outer_stride = gridDim.x * block_size * inner_work_iters;
+    /*/
+    const std::int32_t idx = blockIdx.x * block_size + threadIdx.x;
+    const std::int32_t inner_stride = gridDim.x * block_size;
+    const std::int32_t outer_stride = inner_work_iters * inner_stride;
+    //*/
+    // const T input = static_cast<T>(i_input);
 
 #if USE_ARRAY
     static_assert(inner_work_iters % 2 == 0,
@@ -29,7 +47,7 @@ __global__ void benchmark_kernel(T input, T *__restrict__ data) {
     for (std::int32_t o = 0; o < outer_work_iters; ++o) {
 #pragma unroll
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
-            reg[i] = data[idx + i * block_size + o * outer_stride];
+            reg[i] = data[idx + i * inner_stride + o * outer_stride];
 #pragma unroll
             for (std::int32_t c = 0; c < compute_iters; ++c) {
                 reg[i] = reg[i] * reg[i] + input;
@@ -51,7 +69,7 @@ __global__ void benchmark_kernel(T input, T *__restrict__ data) {
     for (std::int32_t o = 0; o < outer_work_iters; ++o) {
 #pragma unroll
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
-            T mem = data[idx + i * block_size + o * outer_stride];
+            const T mem = data[idx + i * inner_stride + o * outer_stride];
             reg = mem * input + reg;
 #pragma unroll
             for (std::int32_t c = 0; c < compute_iters; ++c) {
@@ -67,18 +85,25 @@ __global__ void benchmark_kernel(T input, T *__restrict__ data) {
 }
 
 // Specialization for Accessor
-template <typename Accessor, std::int32_t block_size, std::int32_t outer_work_iters,
-          std::int32_t inner_work_iters, std::int32_t compute_iters>
-__global__ void benchmark_kernel(std::int32_t i_input, Accessor acc) {
+template <typename Input, typename Accessor, std::int32_t block_size,
+          std::int32_t outer_work_iters, std::int32_t inner_work_iters,
+          std::int32_t compute_iters>
+__global__ void benchmark_kernel(const Input input, Accessor acc) {
     static_assert(block_size > 0, "block_size must be positive!");
     static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
-    static_assert(compute_iters >= 0, "compute_iters must be positive or zero!");
+    static_assert(compute_iters >= 0,
+                  "compute_iters must be positive or zero!");
+    /*
     const std::int32_t idx =
         blockIdx.x * block_size * inner_work_iters + threadIdx.x;
     const std::int32_t outer_stride = gridDim.x * block_size * inner_work_iters;
-    using value_type = typename Accessor::accessor::arithmetic_type;
+    /*/
+    const std::int32_t idx = blockIdx.x * block_size + threadIdx.x;
 
-    const auto input = static_cast<value_type>(i_input);
+    using value_type = typename Accessor::accessor::arithmetic_type;
+    static_assert(std::is_same<value_type, Input>::value, "Types must match!");
+
+    // const auto input = static_cast<value_type>(i_input);
 
 #if USE_ARRAY
     static_assert(inner_work_iters % 2 == 0,
@@ -87,7 +112,8 @@ __global__ void benchmark_kernel(std::int32_t i_input, Accessor acc) {
     for (std::int32_t o = 0; o < outer_work_iters; ++o) {
 #pragma unroll
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
-            reg[i] = acc(idx + i * block_size + o * outer_stride);
+            reg[i] = acc(o, i, idx);
+            // reg[i] = acc(idx + i * block_size + o * outer_stride);
 #pragma unroll
             for (std::int32_t c = 0; c < compute_iters; ++c) {
                 reg[i] = reg[i] * reg[i] + input;
@@ -100,7 +126,8 @@ __global__ void benchmark_kernel(std::int32_t i_input, Accessor acc) {
         }
         // Intentionally is never true
         if (reduced == static_cast<value_type>(-1)) {
-            acc(idx + o * outer_stride) = reduced;
+            // acc(idx + o * outer_stride) = reduced;
+            acc(o, 0, idx) = reduced;
         }
     }
 
@@ -109,7 +136,8 @@ __global__ void benchmark_kernel(std::int32_t i_input, Accessor acc) {
     for (std::int32_t o = 0; o < outer_work_iters; ++o) {
 #pragma unroll
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
-            value_type mem = acc(idx + i * block_size + o * outer_stride);
+            // value_type mem = acc(idx + i * block_size + o * outer_stride);
+            const value_type mem = acc(o, i, idx);
             reg = mem * input + reg;
 #pragma unroll
             for (std::int32_t c = 0; c < compute_iters; ++c) {
@@ -118,7 +146,8 @@ __global__ void benchmark_kernel(std::int32_t i_input, Accessor acc) {
         }
         // Intentionally is never true
         if (reg == static_cast<value_type>(-1)) {
-            acc(idx + o * outer_stride) = reg;
+            // acc(idx + o * outer_stride) = reg;
+            acc(o, 0, idx) = reg;
         }
     }
 #endif  // USE_ARRAY
@@ -198,9 +227,9 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr) {
     info.block = block_;
     info.size_bytes = num_elems * sizeof(T);
 #if USE_ARRAY
-    info.computations = info.total_threads * info.outer_work_iters *
-                        info.inner_work_iters *
-                        (static_cast<std::size_t>(info.compute_iters) * 2 + 2/2);
+    info.computations =
+        info.total_threads * info.outer_work_iters * info.inner_work_iters *
+        (static_cast<std::size_t>(info.compute_iters) * 2 + 2 / 2);
     // Note: 2/2(==1) because: 2 for FMA for inner/2 iterations
 #else
     info.computations = info.total_threads * info.outer_work_iters *
@@ -209,31 +238,34 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr) {
 #endif
 
     auto i_input = static_cast<std::int32_t>(input);
-    gko::dim<1> size{num_elems};
-    using accessor = gko::accessor::reduced_row_major<1, T, T>;
+    gko::dim<3> size{outer_work_iters, inner_work_iters, info.total_threads};
+    // std::array<std::size_t, 2> stride{static_cast<std::size_t>(grid_.x *
+    // block_size * inner_work_iters), block_size};
+    using accessor = gko::accessor::reduced_row_major<3, T, T>;
     using range = gko::range<accessor>;
-    auto acc = range(size, data_ptr);
+    auto acc = range(size, data_ptr /*, stride*/);
     // Warmup
-    //*
+#if USE_ACCESSOR
+    benchmark_kernel<T, range, block_size, outer_work_iters, inner_work_iters,
+                     compute_iters><<<grid_, block_>>>(input, acc);
+#else
     benchmark_kernel<T, block_size, outer_work_iters, inner_work_iters,
                      compute_iters><<<grid_, block_>>>(input, data_ptr);
-    /*/
-    benchmark_kernel<range, block_size, outer_work_iters, inner_work_iters,
-                     compute_iters><<<grid_, block_>>>(i_input, acc);
-    //*/
+#endif
     CUDA_CALL(cudaDeviceSynchronize());
 
     double time_{0};
     for (int i = 0; i < average_iters; ++i) {
         cuda_timer timer_;
         timer_.start();
-        //*
+#if USE_ACCESSOR
+        benchmark_kernel<T, range, block_size, outer_work_iters,
+                         inner_work_iters, compute_iters>
+            <<<grid_, block_>>>(input, acc);
+#else
         benchmark_kernel<T, block_size, outer_work_iters, inner_work_iters,
                          compute_iters><<<grid_, block_>>>(input, data_ptr);
-        /*/
-        benchmark_kernel<range, block_size, outer_work_iters, inner_work_iters,
-                         compute_iters><<<grid_, block_>>>(i_input, acc);
-        //*/
+#endif
         timer_.stop();
         time_ += timer_.get_time();
     }
