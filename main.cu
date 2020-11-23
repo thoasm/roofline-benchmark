@@ -47,15 +47,6 @@ struct type_list {};
 template <typename T, T... Vals>
 struct val_list {};
 
-/*
-template <std::int32_t block_size, typename T, typename IT, IT outer,
-          IT inner_k, IT... rem_inner, IT... compute>
-void run_benchmark_variations_inner(
-                              val_list<IT, inner...> i_list,
-                              val_list<IT, compute...> c_list,
-                              std::size_t num_elems, std::int32_t r_val,
-                              void *data) {
-*/
 
 // For compute resolution
 template <std::int32_t block_size, typename T, typename IT, IT outer, IT inner,
@@ -118,15 +109,15 @@ void run_benchmark_variations(type_list<T, RemTypes...>, Args... args) {
 
 int main() {
     using i_type = std::int32_t;
-    constexpr std::size_t num_elems = 32 * 1024 * 1024;
+    constexpr std::size_t num_elems = 128 * 1024 * 1024;
     constexpr std::int32_t block_size = 256;
 
     constexpr type_list<double, float, int> type_list;
     constexpr val_list<i_type, 4> outer_list;
-    constexpr val_list<i_type, 8> inner_list;
+    constexpr val_list<i_type, 16> inner_list;
     // constexpr val_list<i_type, 0, 1, 2, 3, 4, 8, 16, 32, 64, 128, 256>
     // compute_list;
-    constexpr val_list<i_type, 0, 1, 2, 4, 8, 16, 32, 64, 128, 256> compute_list;
+    constexpr val_list<i_type, 0, 1, 2, 3, 4, 8, 16, 32, 64, 128, 256> compute_list;
 
     std::random_device r_device;
     std::default_random_engine engine(r_device());
