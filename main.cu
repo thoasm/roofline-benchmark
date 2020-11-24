@@ -16,6 +16,8 @@ void print_header() {
               << SEP << std::setw(11) << "[GOPs/s]"
               << SEP << std::setw(11) << "BW [GB/s]"
               << SEP << std::setw(11) << "time [ms]"
+              << SEP << std::setw(13) << "computations"
+              << SEP << std::setw(13) << "data [Bytes]"
               << SEP << std::setw(10) << "Outer Its"
               << SEP << std::setw(10) << "Inner Its"
               << SEP << std::setw(9) << "Comp Its"
@@ -32,6 +34,8 @@ void print_info(const benchmark_info &info) {
               << SEP << std::setw(11) << info.get_giops()
               << SEP << std::setw(11) << info.get_bw_gbs()
               << SEP << std::setw(11) << info.time_ms
+              << SEP << std::setw(13) << info.computations
+              << SEP << std::setw(13) << info.size_bytes
               << SEP << std::setw(10) << info.outer_work_iters
               << SEP << std::setw(10) << info.inner_work_iters
               << SEP << std::setw(9) << info.compute_iters
@@ -47,6 +51,12 @@ struct type_list {};
 template <typename T, T... Vals>
 struct val_list {};
 
+template <typename T, Precision prec>
+struct v_type {
+    using type = T;
+    static constexpr Precision p = prec;
+};
+
 // For compute resolution
 template <std::int32_t block_size, typename T, typename IT, IT outer, IT inner,
           typename... Args>
@@ -57,8 +67,11 @@ template <std::int32_t block_size, typename T, typename IT, IT outer, IT inner,
 void run_benchmark_variations_compute(val_list<IT, compute_k, rem_compute...>,
                                       std::size_t num_elems, std::int32_t r_val,
                                       void *data) {
-    auto info = run_benchmark<T, block_size, outer, inner, compute_k>(
-        num_elems, static_cast<T>(r_val), reinterpret_cast<T *>(data));
+    using value_type = typename T::type;
+    auto prec = T::p;
+    auto info = run_benchmark<value_type, block_size, outer, inner, compute_k>(
+        num_elems, static_cast<value_type>(r_val),
+        reinterpret_cast<value_type *>(data), prec);
     print_info(info);
     // recursion
     run_benchmark_variations_compute<block_size, T, IT, outer, inner>(
@@ -111,10 +124,17 @@ int main() {
     constexpr std::size_t num_elems = 128 * 1024 * 1024;
     constexpr std::int32_t block_size = 256;
 
-    constexpr type_list<double, float, int> type_list;
-    constexpr val_list<i_type, 1> outer_list;
+    constexpr type_list<v_type<double, Precision::Pointer>,
+                        v_type<double, Precision::AccessorKeep>,
+                        v_type<double, Precision::AccessorReduced>,
+                        v_type<float, Precision::Pointer>,
+                        v_type<int, Precision::Pointer>,
+                        v_type<int, Precision::AccessorReduced>>
+        type_list;
+    constexpr val_list<i_type, 1, 4> outer_list;
     constexpr val_list<i_type, 8> inner_list;
-    constexpr val_list<i_type, 0, 1, 2, 3, 4, 8, 16, 32, 64, 128, 256>
+    constexpr val_list<i_type, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+                       15, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 512>
         compute_list;
 
     std::random_device r_device;
@@ -125,8 +145,7 @@ int main() {
     cudaSetDevice(0);
 
     std::cout << "num_elems = " << num_elems << "; Array is "
-              << (USE_ARRAY ? "used" : "NOT used") << "; "
-              << (USE_ACCESSOR ? "Accessor" : "Pointer") << '\n';
+              << (USE_ARRAY ? "used" : "NOT used") << "; " << '\n';
 
     c_memory<double> data(
         num_elems);  // MUST be the largest type of all `type_list` types

@@ -10,8 +10,7 @@
 
 #include "helper.cuh"
 
-#define USE_ARRAY 0
-#define USE_ACCESSOR 0
+#define USE_ARRAY 1
 
 /**
  * Note: when changing the `input` type to int, followed by casting it to `T` /
@@ -48,7 +47,7 @@ __global__ void benchmark_kernel(const T input, T *__restrict__ data) {
 #pragma unroll
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
             reg[i] = data[idx + i * inner_stride + o * outer_stride];
-#pragma unroll
+#pragma unroll 128
             for (std::int32_t c = 0; c < compute_iters; ++c) {
                 reg[i] = reg[i] * reg[i] + input;
             }
@@ -71,7 +70,7 @@ __global__ void benchmark_kernel(const T input, T *__restrict__ data) {
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
             const T mem = data[idx + i * inner_stride + o * outer_stride];
             reg = mem * input + reg;
-#pragma unroll
+#pragma unroll 128
             for (std::int32_t c = 0; c < compute_iters; ++c) {
                 reg = reg * reg + input;
             }
@@ -102,7 +101,7 @@ __global__ void benchmark_kernel(const Input input, Accessor acc) {
 
     using value_type = typename Accessor::accessor::arithmetic_type;
     static_assert(std::is_same<value_type, Input>::value, "Types must match!");
-
+    //*/
     // const auto input = static_cast<value_type>(i_input);
 
 #if USE_ARRAY
@@ -114,7 +113,7 @@ __global__ void benchmark_kernel(const Input input, Accessor acc) {
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
             reg[i] = acc(o, i, idx);
             // reg[i] = acc(idx + i * block_size + o * outer_stride);
-#pragma unroll
+#pragma unroll 128
             for (std::int32_t c = 0; c < compute_iters; ++c) {
                 reg[i] = reg[i] * reg[i] + input;
             }
@@ -139,7 +138,7 @@ __global__ void benchmark_kernel(const Input input, Accessor acc) {
             // value_type mem = acc(idx + i * block_size + o * outer_stride);
             const value_type mem = acc(o, i, idx);
             reg = mem * input + reg;
-#pragma unroll
+#pragma unroll 128
             for (std::int32_t c = 0; c < compute_iters; ++c) {
                 reg = reg * reg + input;
             }
@@ -199,11 +198,15 @@ struct benchmark_info {
     }
 };
 
+enum class Precision { Pointer, AccessorKeep, AccessorReduced };
+
 template <typename T, std::int32_t block_size, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr) {
+benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
+                             Precision prec = Precision::Pointer) {
     constexpr int average_iters{5};
     benchmark_info info;
+    // Precision prec = Precision::Pointer;
 
     dim3 block_(block_size);
     dim3 grid_(
@@ -237,37 +240,72 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr) {
                         static_cast<std::size_t>(info.compute_iters + 1) * 2;
 #endif
 
-    auto i_input = static_cast<std::int32_t>(input);
-    gko::dim<3> size{outer_work_iters, inner_work_iters, info.total_threads};
-    // std::array<std::size_t, 2> stride{static_cast<std::size_t>(grid_.x *
-    // block_size * inner_work_iters), block_size};
-    using accessor = gko::accessor::reduced_row_major<3, T, T>;
-    using range = gko::range<accessor>;
-    auto acc = range(size, data_ptr /*, stride*/);
-    // Warmup
-#if USE_ACCESSOR
-    benchmark_kernel<T, range, block_size, outer_work_iters, inner_work_iters,
-                     compute_iters><<<grid_, block_>>>(input, acc);
-#else
-    benchmark_kernel<T, block_size, outer_work_iters, inner_work_iters,
-                     compute_iters><<<grid_, block_>>>(input, data_ptr);
-#endif
-    CUDA_CALL(cudaDeviceSynchronize());
-
+    // auto i_input = static_cast<std::int32_t>(input);
     double time_{0};
-    for (int i = 0; i < average_iters; ++i) {
-        cuda_timer timer_;
-        timer_.start();
-#if USE_ACCESSOR
+    if (prec == Precision::Pointer) {
+        benchmark_kernel<T, block_size, outer_work_iters, inner_work_iters,
+                         compute_iters><<<grid_, block_>>>(input, data_ptr);
+        CUDA_CALL(cudaDeviceSynchronize());
+
+        for (int i = 0; i < average_iters; ++i) {
+            cuda_timer timer_;
+            timer_.start();
+            benchmark_kernel<T, block_size, outer_work_iters, inner_work_iters,
+                             compute_iters><<<grid_, block_>>>(input, data_ptr);
+            timer_.stop();
+            time_ += timer_.get_time();
+        }
+    } else if (prec == Precision::AccessorKeep) {
+        info.precision = std::string("Ac<3, ") + typeid(T).name() + ", " +
+                         typeid(T).name() + ">";
+        gko::dim<3> size{outer_work_iters, inner_work_iters,
+                         info.total_threads};
+        using accessor = gko::accessor::reduced_row_major<3, T, T>;
+        using range = gko::range<accessor>;
+        auto acc = range(size, data_ptr);
+        // Warmup
         benchmark_kernel<T, range, block_size, outer_work_iters,
                          inner_work_iters, compute_iters>
             <<<grid_, block_>>>(input, acc);
-#else
-        benchmark_kernel<T, block_size, outer_work_iters, inner_work_iters,
-                         compute_iters><<<grid_, block_>>>(input, data_ptr);
-#endif
-        timer_.stop();
-        time_ += timer_.get_time();
+        CUDA_CALL(cudaDeviceSynchronize());
+
+        for (int i = 0; i < average_iters; ++i) {
+            cuda_timer timer_;
+            timer_.start();
+            benchmark_kernel<T, range, block_size, outer_work_iters,
+                             inner_work_iters, compute_iters>
+                <<<grid_, block_>>>(input, acc);
+            timer_.stop();
+            time_ += timer_.get_time();
+        }
+    } else {
+        using lower_precision = std::conditional_t<
+            std::is_same<T, double>::value, float,
+            std::conditional_t<std::is_same<T, std::int32_t>::value, std::int16_t, T>>;
+        info.precision = std::string("Ac<3, ") + typeid(T).name() + ", " +
+                         typeid(lower_precision).name() + ">";
+        info.size_bytes = info.num_elems * sizeof(lower_precision);
+        gko::dim<3> size{outer_work_iters, inner_work_iters,
+                         info.total_threads};
+        using accessor =
+            gko::accessor::reduced_row_major<3, T, lower_precision>;
+        using range = gko::range<accessor>;
+        auto acc = range(size, reinterpret_cast<lower_precision *>(data_ptr));
+        // Warmup
+        benchmark_kernel<T, range, block_size, outer_work_iters,
+                         inner_work_iters, compute_iters>
+            <<<grid_, block_>>>(input, acc);
+        CUDA_CALL(cudaDeviceSynchronize());
+
+        for (int i = 0; i < average_iters; ++i) {
+            cuda_timer timer_;
+            timer_.start();
+            benchmark_kernel<T, range, block_size, outer_work_iters,
+                             inner_work_iters, compute_iters>
+                <<<grid_, block_>>>(input, acc);
+            timer_.stop();
+            time_ += timer_.get_time();
+        }
     }
     info.time_ms = time_ / static_cast<double>(average_iters);
     return info;
