@@ -86,8 +86,8 @@ __global__ void benchmark_kernel(const T input, T *__restrict__ data) {
 // Specialization for Accessor
 template <std::int32_t block_size, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters,
-          typename Input, typename Accessor, typename lower_precision>
-__global__ void benchmark_accessor_kernel(const Input input, lower_precision *__restrict__ data_ptr) {
+          typename Input, typename Accessor>
+__global__ void benchmark_accessor_kernel(const Input input, Accessor acc) {
     static_assert(block_size > 0, "block_size must be positive!");
     static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
     static_assert(compute_iters >= 0,
@@ -99,14 +99,6 @@ __global__ void benchmark_accessor_kernel(const Input input, lower_precision *__
     const std::int32_t outer_stride = gridDim.x * block_size * inner_work_iters;
     /*/
     const std::int64_t idx = blockIdx.x * block_size + threadIdx.x;
-    const std::uint64_t inner_stride = gridDim.x * block_size;
-    const std::uint64_t outer_stride = inner_work_iters * inner_stride;
-
-    constexpr std::size_t dimensionality{3};
-    using range = gko::range<Accessor>;
-    const gko::dim<dimensionality> size{}; // size should be irrelevant here!
-    std::array<std::size_t, 2> stride{outer_stride, inner_stride};
-    auto acc = range(size, data_ptr, stride);
 
     using value_type = typename Accessor::accessor::arithmetic_type;
     static_assert(std::is_same<value_type, Input>::value, "Types must match!");
@@ -285,7 +277,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
         // Warmup
         benchmark_accessor_kernel<block_size, outer_work_iters,
                                   inner_work_iters, compute_iters, T, range>
-            <<<grid_, block_>>>(input, data_ptr);
+            <<<grid_, block_>>>(input, acc);
         CUDA_CALL(cudaDeviceSynchronize());
 
         for (int i = 0; i < average_iters; ++i) {
@@ -293,7 +285,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
             timer_.start();
             benchmark_accessor_kernel<block_size, outer_work_iters,
                                       inner_work_iters, compute_iters, T, range>
-                <<<grid_, block_>>>(input, data_ptr);
+                <<<grid_, block_>>>(input, acc);
             timer_.stop();
             time_ += timer_.get_time();
         }
@@ -323,7 +315,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
         // Warmup
         benchmark_accessor_kernel<block_size, outer_work_iters,
                                   inner_work_iters, compute_iters, T, range>
-            <<<grid_, block_>>>(input, lower_ptr);
+            <<<grid_, block_>>>(input, acc);
         CUDA_CALL(cudaDeviceSynchronize());
 
         for (int i = 0; i < average_iters; ++i) {
@@ -331,7 +323,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
             timer_.start();
             benchmark_accessor_kernel<block_size, outer_work_iters,
                                       inner_work_iters, compute_iters, T, range>
-                <<<grid_, block_>>>(input, lower_ptr);
+                <<<grid_, block_>>>(input, acc);
             timer_.stop();
             time_ += timer_.get_time();
         }
