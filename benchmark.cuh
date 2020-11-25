@@ -20,8 +20,8 @@
  * Currently, it is unclear why that happens!
  */
 
-template <typename T, std::int32_t block_size, std::int32_t outer_work_iters,
-          std::int32_t inner_work_iters, std::int32_t compute_iters>
+template <std::int32_t block_size, std::int32_t outer_work_iters,
+          std::int32_t inner_work_iters, std::int32_t compute_iters, typename T>
 __global__ void benchmark_kernel(const T input, T *__restrict__ data) {
     static_assert(block_size > 0, "block_size must be positive!");
     static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
@@ -33,9 +33,9 @@ __global__ void benchmark_kernel(const T input, T *__restrict__ data) {
     const std::int32_t inner_stride = block_size;
     const std::int32_t outer_stride = gridDim.x * block_size * inner_work_iters;
     /*/
-    const std::int32_t idx = blockIdx.x * block_size + threadIdx.x;
-    const std::int32_t inner_stride = gridDim.x * block_size;
-    const std::int32_t outer_stride = inner_work_iters * inner_stride;
+    const std::int64_t idx = blockIdx.x * block_size + threadIdx.x;
+    const std::int64_t inner_stride = gridDim.x * block_size;
+    const std::int64_t outer_stride = inner_work_iters * inner_stride;
     //*/
     // const T input = static_cast<T>(i_input);
 
@@ -84,20 +84,23 @@ __global__ void benchmark_kernel(const T input, T *__restrict__ data) {
 }
 
 // Specialization for Accessor
-template <typename Input, typename Accessor, std::int32_t block_size,
-          std::int32_t outer_work_iters, std::int32_t inner_work_iters,
-          std::int32_t compute_iters>
-__global__ void benchmark_kernel(const Input input, Accessor acc) {
+template <std::int32_t block_size, std::int32_t outer_work_iters,
+          std::int32_t inner_work_iters, std::int32_t compute_iters,
+          typename Input, typename Accessor>
+__global__ void benchmark_accessor_kernel(const Input input, Accessor acc) {
     static_assert(block_size > 0, "block_size must be positive!");
     static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
     static_assert(compute_iters >= 0,
                   "compute_iters must be positive or zero!");
+    static_assert(Accessor::dimensionality == 1, "Accessor must be 1D!");
     /*
     const std::int32_t idx =
         blockIdx.x * block_size * inner_work_iters + threadIdx.x;
     const std::int32_t outer_stride = gridDim.x * block_size * inner_work_iters;
     /*/
-    const std::int32_t idx = blockIdx.x * block_size + threadIdx.x;
+    const std::int64_t idx = blockIdx.x * block_size + threadIdx.x;
+    const std::int64_t inner_stride = gridDim.x * block_size;
+    const std::int64_t outer_stride = inner_work_iters * inner_stride;
 
     using value_type = typename Accessor::accessor::arithmetic_type;
     static_assert(std::is_same<value_type, Input>::value, "Types must match!");
@@ -111,8 +114,8 @@ __global__ void benchmark_kernel(const Input input, Accessor acc) {
     for (std::int32_t o = 0; o < outer_work_iters; ++o) {
 #pragma unroll
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
-            reg[i] = acc(o, i, idx);
-            // reg[i] = acc(idx + i * block_size + o * outer_stride);
+            // reg[i] = acc(o, i, idx);
+            reg[i] = acc(idx + i * inner_stride + o * outer_stride);
 #pragma unroll 128
             for (std::int32_t c = 0; c < compute_iters; ++c) {
                 reg[i] = reg[i] * reg[i] + input;
@@ -125,8 +128,8 @@ __global__ void benchmark_kernel(const Input input, Accessor acc) {
         }
         // Intentionally is never true
         if (reduced == static_cast<value_type>(-1)) {
-            // acc(idx + o * outer_stride) = reduced;
-            acc(o, 0, idx) = reduced;
+            // acc(o, 0, idx) = reduced;
+            acc(idx + o * outer_stride) = reduced;
         }
     }
 
@@ -135,8 +138,9 @@ __global__ void benchmark_kernel(const Input input, Accessor acc) {
     for (std::int32_t o = 0; o < outer_work_iters; ++o) {
 #pragma unroll
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
-            // value_type mem = acc(idx + i * block_size + o * outer_stride);
-            const value_type mem = acc(o, i, idx);
+            const value_type mem =
+                acc(idx + i * inner_stride + o * outer_stride);
+            // const value_type mem = acc(o, i, idx);
             reg = mem * input + reg;
 #pragma unroll 128
             for (std::int32_t c = 0; c < compute_iters; ++c) {
@@ -145,8 +149,8 @@ __global__ void benchmark_kernel(const Input input, Accessor acc) {
         }
         // Intentionally is never true
         if (reg == static_cast<value_type>(-1)) {
-            // acc(idx + o * outer_stride) = reg;
-            acc(o, 0, idx) = reg;
+            // acc(o, 0, idx) = reg;
+            acc(idx + o * outer_stride) = reg;
         }
     }
 #endif  // USE_ARRAY
@@ -243,37 +247,46 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
     // auto i_input = static_cast<std::int32_t>(input);
     double time_{0};
     if (prec == Precision::Pointer) {
-        benchmark_kernel<T, block_size, outer_work_iters, inner_work_iters,
-                         compute_iters><<<grid_, block_>>>(input, data_ptr);
+        benchmark_kernel<block_size, outer_work_iters, inner_work_iters,
+                         compute_iters, T><<<grid_, block_>>>(input, data_ptr);
         CUDA_CALL(cudaDeviceSynchronize());
 
         for (int i = 0; i < average_iters; ++i) {
             cuda_timer timer_;
             timer_.start();
-            benchmark_kernel<T, block_size, outer_work_iters, inner_work_iters,
-                             compute_iters><<<grid_, block_>>>(input, data_ptr);
+            benchmark_kernel<block_size, outer_work_iters, inner_work_iters,
+                             compute_iters, T>
+                <<<grid_, block_>>>(input, data_ptr);
             timer_.stop();
             time_ += timer_.get_time();
         }
     } else if (prec == Precision::AccessorKeep) {
-        info.precision = std::string("Ac<3, ") + typeid(T).name() + ", " +
-                         typeid(T).name() + ">";
-        gko::dim<3> size{outer_work_iters, inner_work_iters,
+        /*
+        constexpr std::size_t dimensionality{3};
+        gko::dim<dimensionality> size{outer_work_iters, inner_work_iters,
                          info.total_threads};
-        using accessor = gko::accessor::reduced_row_major<3, T, T>;
+        /*/
+        constexpr std::size_t dimensionality{1};
+        gko::dim<dimensionality> size{outer_work_iters * inner_work_iters *
+                                      info.total_threads};
+        //*/
+        info.precision = std::string("Ac<") + std::to_string(dimensionality) +
+                         ", " + typeid(T).name() + ", " + typeid(T).name() +
+                         ">";
+        using accessor = gko::accessor::reduced_row_major<dimensionality, T, T>;
         using range = gko::range<accessor>;
         auto acc = range(size, data_ptr);
         // Warmup
-        benchmark_kernel<T, range, block_size, outer_work_iters,
-                         inner_work_iters, compute_iters>
+        benchmark_accessor_kernel<block_size, outer_work_iters,
+                                  inner_work_iters, compute_iters>
             <<<grid_, block_>>>(input, acc);
         CUDA_CALL(cudaDeviceSynchronize());
 
         for (int i = 0; i < average_iters; ++i) {
             cuda_timer timer_;
             timer_.start();
-            benchmark_kernel<T, range, block_size, outer_work_iters,
-                             inner_work_iters, compute_iters>
+            benchmark_accessor_kernel<block_size, outer_work_iters,
+                                      inner_work_iters, compute_iters>
                 <<<grid_, block_>>>(input, acc);
             timer_.stop();
             time_ += timer_.get_time();
@@ -281,27 +294,36 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
     } else {
         using lower_precision = std::conditional_t<
             std::is_same<T, double>::value, float,
-            std::conditional_t<std::is_same<T, std::int32_t>::value, std::int16_t, T>>;
-        info.precision = std::string("Ac<3, ") + typeid(T).name() + ", " +
+            std::conditional_t<std::is_same<T, std::int32_t>::value,
+                               std::int16_t, T>>;
+        /*
+        constexpr std::size_t dimensionality{3};
+        gko::dim<dimensionality> size{outer_work_iters, inner_work_iters,
+                         info.total_threads};
+        /*/
+        constexpr std::size_t dimensionality{1};
+        gko::dim<dimensionality> size{outer_work_iters * inner_work_iters *
+                                      info.total_threads};
+        //*/
+        info.precision = std::string("Ac<") + std::to_string(dimensionality) +
+                         ", " + typeid(T).name() + ", " +
                          typeid(lower_precision).name() + ">";
         info.size_bytes = info.num_elems * sizeof(lower_precision);
-        gko::dim<3> size{outer_work_iters, inner_work_iters,
-                         info.total_threads};
-        using accessor =
-            gko::accessor::reduced_row_major<3, T, lower_precision>;
+        using accessor = gko::accessor::reduced_row_major<dimensionality, T,
+                                                          lower_precision>;
         using range = gko::range<accessor>;
         auto acc = range(size, reinterpret_cast<lower_precision *>(data_ptr));
         // Warmup
-        benchmark_kernel<T, range, block_size, outer_work_iters,
-                         inner_work_iters, compute_iters>
+        benchmark_accessor_kernel<block_size, outer_work_iters,
+                                  inner_work_iters, compute_iters>
             <<<grid_, block_>>>(input, acc);
         CUDA_CALL(cudaDeviceSynchronize());
 
         for (int i = 0; i < average_iters; ++i) {
             cuda_timer timer_;
             timer_.start();
-            benchmark_kernel<T, range, block_size, outer_work_iters,
-                             inner_work_iters, compute_iters>
+            benchmark_accessor_kernel<block_size, outer_work_iters,
+                                      inner_work_iters, compute_iters>
                 <<<grid_, block_>>>(input, acc);
             timer_.stop();
             time_ += timer_.get_time();

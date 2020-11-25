@@ -15,18 +15,22 @@ add_executable(roofline_cuda)
 target_sources(roofline_cuda PRIVATE
     main.cu
     )
-target_include_directories(roofline_cuda PRIVATE
-    "$ENV{HOME}/projects/ginkgo_github/include"
-    "$ENV{HOME}/projects/ginkgo_github/build/debug/include"
+
+set(GINKGO_DIR
     "$ENV{HOME}/projects/ginkgo_github"
+    )
+target_include_directories(roofline_cuda PRIVATE
+    "${GINKGO_DIR}/include"
+    "${GINKGO_DIR}/build/debug/include"
+    "${GINKGO_DIR}"
     )
 
 target_compile_features(roofline_cuda PUBLIC cxx_std_14)
 
 # Command to get PTX code:
-#nvcc -I/home/thomas/projects/ginkgo_github/include \
-#  -I/home/thomas/projects/ginkgo_github/build/debug/include \
-#  -I/home/thomas/projects/ginkgo_github \
+#nvcc -I${HOME}/projects/ginkgo_github/include \
+#  -I${HOME}/projects/ginkgo_github/build/debug/include \
+#  -I${HOME}/projects/ginkgo_github \
 #  -Wno-deprecated-gpu-targets  --expt-relaxed-constexpr -arch=sm_75 \
 #  -O3 -DNDEBUG -std=c++14 --ptx ../main.cu -o main.ptx \
 #  && cat main.ptx | c++filt -t > main_deman.ptx
