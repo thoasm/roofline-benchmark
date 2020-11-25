@@ -8,7 +8,9 @@ include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 string(APPEND CMAKE_CUDA_FLAGS " -Wno-deprecated-gpu-targets")
 string(APPEND CMAKE_CUDA_FLAGS " --expt-relaxed-constexpr")
 #string(APPEND CMAKE_CUDA_FLAGS " --cudart=static")
-string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_52,code=[sm_52,compute_52] -gencode arch=compute_75,code=compute_75")
+string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_52,code=[sm_52,compute_52]")
+string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_75,code=sm_75")
+string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_80,code=sm_80")
 
 add_executable(roofline_cuda)
 
