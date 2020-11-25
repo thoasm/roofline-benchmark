@@ -129,6 +129,7 @@ int main() {
                         v_type<double, Precision::AccessorKeep>,
                         v_type<double, Precision::AccessorReduced>,
                         v_type<float, Precision::Pointer>,
+                        v_type<float, Precision::AccessorKeep>,
                         v_type<int, Precision::Pointer>,
                         v_type<int, Precision::AccessorReduced>>
         type_list;
