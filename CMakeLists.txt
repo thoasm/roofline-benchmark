@@ -8,7 +8,7 @@ include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 string(APPEND CMAKE_CUDA_FLAGS " -Wno-deprecated-gpu-targets")
 string(APPEND CMAKE_CUDA_FLAGS " --expt-relaxed-constexpr")
 #string(APPEND CMAKE_CUDA_FLAGS " --cudart=static")
-string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_52,code=[sm_52,compute_52]")
+#string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_52,code=[sm_52,compute_52]")
 string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_75,code=sm_75")
 string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_80,code=sm_80")
 
@@ -20,10 +20,11 @@ target_sources(roofline_cuda PRIVATE
 
 set(GINKGO_DIR
     "$ENV{HOME}/projects/ginkgo_github"
+    #"$ENV{HOME}/projects/ginkgo_accessor"
     )
 target_include_directories(roofline_cuda PRIVATE
     "${GINKGO_DIR}/include"
-    "${GINKGO_DIR}/build/debug/include"
+    "${GINKGO_DIR}/build/release/include"
     "${GINKGO_DIR}"
     )
 
