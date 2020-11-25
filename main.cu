@@ -124,6 +124,7 @@ int main() {
     constexpr std::size_t num_elems = 128 * 1024 * 1024;
     constexpr std::int32_t block_size = 256;
 
+    /*
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
                         v_type<double, Precision::AccessorReduced>,
@@ -136,6 +137,15 @@ int main() {
     constexpr val_list<i_type, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
                        15, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 512>
         compute_list;
+    /*/
+    constexpr type_list<v_type<double, Precision::Pointer>,
+                        v_type<double, Precision::AccessorKeep>,
+                        v_type<double, Precision::AccessorReduced>>
+        type_list;
+    constexpr val_list<i_type, 4> outer_list;
+    constexpr val_list<i_type, 8> inner_list;
+    constexpr val_list<i_type, 0, 1, 2> compute_list;
+    //*/
 
     std::random_device r_device;
     std::default_random_engine engine(r_device());
