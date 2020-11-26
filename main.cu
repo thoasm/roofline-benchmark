@@ -134,7 +134,7 @@ int main() {
                         v_type<int, Precision::AccessorReduced>>
         type_list;
     constexpr val_list<i_type, 1, 4> outer_list;
-    constexpr val_list<i_type, 8> inner_list;
+    constexpr val_list<i_type, 4, 8> inner_list;
     constexpr val_list<i_type, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
                        15, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 512>
         compute_list;
