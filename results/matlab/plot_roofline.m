@@ -6,6 +6,10 @@ if (nargin < 1)
     %file_postfix = "_mi100";
 end
 
+output_folder = 'plots/';
+if ~exist(output_folder, 'dir')
+    mkdir(output_folder);
+end
 
 % Makes it the default behavior to always fill out the graph window
 set(0,'DefaultAxesLooseInset',[0,0,0,0]);
@@ -92,7 +96,7 @@ xlabel(axes1, "FLOP / Byte", FS, fsla);
 ylabel(axes1, "GFLOP / s", FS, fsla);
 
 % Actually plot:
-print_to_file(figure1, strcat('plots/', 'roofline_compute', file_postfix));
+print_to_file(figure1, strcat(output_folder, 'roofline_compute', file_postfix));
 hold(axes1, 'off');
 
 %%%%%%%%%%%%%%%%%%%%%%  Plot FLOP / Value  %%%%%%%%%%%%%%%%%%%%%%%%5
@@ -114,7 +118,7 @@ legend(axes2, legend_str, FS, fsle, 'Location', 'SE');
 xlabel(axes2, "FLOP / Value", FS, fsla);
 ylabel(axes2, "GFLOP / s", FS, fsla);
 
-print_to_file(figure2, strcat('plots/', 'roofline_compute_pvalue', file_postfix));
+print_to_file(figure2, strcat(output_folder, 'roofline_compute_pvalue', file_postfix));
 hold(axes2, 'off');
 
 
@@ -137,7 +141,7 @@ legend(axes3, legend_str, FS, fsle, 'Location', 'SW');
 xlabel(axes3, "FLOP / Byte", FS, fsla);
 ylabel(axes3, "GB / s", FS, fsla);
 
-print_to_file(figure3, strcat('plots/', 'roofline_bandwidth', file_postfix));
+print_to_file(figure3, strcat(output_folder, 'roofline_bandwidth', file_postfix));
 hold(axes3, 'off');
 
 %%%%%%%%%%%%%%%%%%%%%%  Plot Bandwidth / Value %%%%%%%%%%%%%%%%%%%%%%%%5
@@ -158,7 +162,7 @@ legend(axes4, legend_str, FS, fsle, 'Location', 'SW');
 xlabel(axes4, "FLOP / Value", FS, fsla);
 ylabel(axes4, "GB / s", FS, fsla);
 
-print_to_file(figure4, strcat('plots/', 'roofline_bandwidth_pvalue', file_postfix));
+print_to_file(figure4, strcat(output_folder, 'roofline_bandwidth_pvalue', file_postfix));
 hold(axes4, 'off');
 
 end
