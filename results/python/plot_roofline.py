@@ -1,63 +1,79 @@
 #!/usr/bin/env python3
-
+import os
 import csv
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-with open("../20201125_A100_roofline_d3.csv", 'r') as f:
-    print("The csv file is opened")
-    csv = csv.reader(f, delimiter=';', skipinitialspace=True)
-    header = next(csv)
-    print(header)
-    
-    prec_idx=-1
-    gop_idx=-1
-    bw_idx=-1
-    comp_idx=-1
-    size_idx=-1
-    inner_idx=-1
-    outer_idx=-1
-    # Figure out the indices for important fields
-    for i in range(len(header)):
-        if header[i].startswith("Precision"):
-            prec_idx = i
-        elif header[i].startswith("[GOP"):
-            gop_idx = i
-        elif header[i].startswith("BW"):
-            bw_idx = i
-        elif header[i].startswith("computations"):
-            comp_idx = i
-        elif header[i].startswith("data"):
-            size_idx = i
-        elif header[i].startswith("Outer"):
-            outer_idx = i
-        elif header[i].startswith("Inner"):
-            inner_idx = i
-    data=[]
-    for r in csv:
-        data.append(r)
+h_dict = {
+        "prec" : "Precision",
+        "GOP": "[GOPs/s]", # Will change to '[GOP/s]
+        "BW": "BW [GB/s]",
+        "time": "time [ms]",
+        "comps": "computations",
+        "size": "data [Bytes]",
+        "oiters": "Outer Its",
+        "iiters": "Inner Its",
+        "citers": "Comp Its",
+        "#elms": "# Elements"
+        }
 
-print("{} {} {} {} {} {} {}".format(header[prec_idx], header[gop_idx], header[bw_idx], header[comp_idx], header[size_idx], header[inner_idx], header[outer_idx]))
-prec_set = set()
-for line in data:
-    prec_set.add(line[prec_idx])
+def read_csv(path=None):
+    """
+    Opens the CSV file in 'path' and returns 2 dictionaries:
+    1. The key is the precision it was performed in, the value is the list of a list
+       of column entries of the csv file (the lines are sorted according to number
+       of computations)
+    2. The key is the same as in h_dict, the value is the index of the row
+       array / list for the correesponding key
+    """
+    if path == None:
+        path = "../20201125_A100_roofline_d3.csv"
+    with open(path, 'r') as f:
+        print("The csv file is opened")
+        csv_f = csv.reader(f, delimiter=';', skipinitialspace=True)
+        header = next(csv_f)
+        print(header)
+        
+        i_dict = {}
+        for key, val in h_dict.items():
+            for i in range(len(header)):
+                if header[i] == val:
+                    i_dict[key] = i
+        print(i_dict)
 
-# Filter input data and put it into a dictionary
-data_dict = {}
-for line in data:
-    if (int(line[outer_idx]) == 4 and int(line[inner_idx]) == 8):
-        if not line[prec_idx] in data_dict:
-            data_dict[line[prec_idx]] = [line]
+        data = []
+
+        for r in csv_f:
+            data.append(r)
+
+    prec_set = set()
+    for line in data:
+        prec_set.add(line[i_dict["prec"]])
+
+    # Filter input data and put it into a dictionary
+    data_dict = {}
+    for line in data:
+        if not line[i_dict["prec"]] in data_dict:
+            data_dict[line[i_dict["prec"]]] = [line]
         else:
-            data_dict[line[prec_idx]].append(line)
-for key, value in data_dict.items():
-    # Sort data by number of computations
-    value.sort(key=lambda x:int(x[comp_idx]))
-    #print("Data for {}".format(key))
-    #for l in value:
-    #    print("\t{}".format(l))
-#print(prec_set)
+            data_dict[line[i_dict["prec"]]].append(line)
+    for key, value in data_dict.items():
+        # Sort data by number of computations
+        value.sort(key=lambda x:int(x[i_dict["comps"]]))
+    return data_dict, i_dict
+
+def filter_data(data, predicate):
+    # Filter input data and put it into a dictionary
+    filtered_dict = {}
+    for key, lines in data.items():
+        filtered_dict[key] = []
+        for line in lines:
+            if predicate(line):
+                filtered_dict[key].append(line)
+    return filtered_dict
+
+
 
 
 ############################### Actual Plotting ###############################
@@ -71,9 +87,16 @@ mycyan    = (0.3010, 0.7450, 0.9330);
 myred     = (0.6350, 0.0780, 0.1840);
 myblack   = (0.2500, 0.2500, 0.2500);
 
+### Other globals
 LineWidth = 1
 MarkerSize = 8
 
+
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+if not os.path.exists('plots'):
+    os.makedirs('plots')
 
 ### Save as PDF
 def plot_figure(fig, name):
@@ -93,53 +116,68 @@ def plot_4(ax, xy1, xy2, xy3, xy4):
     ax.plot(xy1[0], xy1[1], label=xy1[2], marker='X', color=mygreen, linewidth=LineWidth, markersize=MarkerSize)
     ax.plot(xy2[0], xy2[1], label=xy2[2],  marker='P', color=myblue, linewidth=LineWidth, markersize=MarkerSize)
     ax.plot(xy3[0], xy3[1], label=xy3[2],  marker='x', color=myorange, linewidth=LineWidth, markersize=MarkerSize)
-    ax.plot(xy4[0], xy4[1], label=xy4[2],  marker='+', color=mymagenta, linewidth=LineWidth, markersize=MarkerSize)
+    ax.plot(xy4[0], xy4[1], label=xy4[2],  marker='+', color=myyellow, linewidth=LineWidth, markersize=MarkerSize)
 
 
-print(prec_set)
+if __name__ == "__main__":
+    data_dict, i_dict = read_csv()
 
-dbl = data_dict["double"]
-dbl_op_p_byte = [int(line[comp_idx]) / int(line[size_idx]) for line in dbl]
-dbl_bw = [float(line[bw_idx]) for line in dbl]
+    filt_lambda = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 8
+    data_dict = filter_data(data_dict, filt_lambda)
 
-flt = data_dict["float"]
-flt_op_p_byte = [int(line[comp_idx]) / int(line[size_idx]) for line in flt]
-flt_bw = [float(line[bw_idx]) for line in flt]
+    # Prepare data later used for plotting
+    dbl = data_dict["double"]
+    dbl_op_p_byte = [int(line[i_dict["comps"]]) / int(line[i_dict["size"]]) for line in dbl]
+    dbl_op_p_val = [x / 8 for x in dbl_op_p_byte]
+    dbl_bw = [float(line[i_dict["BW"]]) for line in dbl]
+    dbl_gop = [float(line[i_dict["GOP"]]) for line in dbl]
 
-add = data_dict["Ac<3, d, d>"]
-add_op_p_byte = [int(line[comp_idx]) / int(line[size_idx]) for line in add]
-add_bw = [float(line[bw_idx]) for line in add]
+    flt = data_dict["float"]
+    flt_op_p_byte = [int(line[i_dict["comps"]]) / int(line[i_dict["size"]]) for line in flt]
+    flt_op_p_val = [x / 4 for x in flt_op_p_byte]
+    flt_bw = [float(line[i_dict["BW"]]) for line in flt]
+    flt_gop = [float(line[i_dict["GOP"]]) for line in flt]
 
-adf = data_dict["Ac<3, d, f>"]
-adf_op_p_byte = [int(line[comp_idx]) / int(line[size_idx]) for line in adf]
-adf_bw = [float(line[bw_idx]) for line in adf]
+    add = data_dict["Ac<3, d, d>"]
+    add_op_p_byte = [int(line[i_dict["comps"]]) / int(line[i_dict["size"]]) for line in add]
+    add_op_p_val = [x / 8 for x in add_op_p_byte]
+    add_bw = [float(line[i_dict["BW"]]) for line in add]
+    add_gop = [float(line[i_dict["GOP"]]) for line in add]
+
+    adf = data_dict["Ac<3, d, f>"]
+    adf_op_p_byte = [int(line[i_dict["comps"]]) / int(line[i_dict["size"]]) for line in adf]
+    adf_op_p_val = [x / 4 for x in adf_op_p_byte]
+    adf_bw = [float(line[i_dict["BW"]]) for line in adf]
+    adf_gop = [float(line[i_dict["GOP"]]) for line in adf]
 
 
+    fig, ax = create_fig_ax()
+    plot_4(
+        ax, (dbl_op_p_byte, dbl_bw, "double precision"),
+        (flt_op_p_byte, flt_bw, "single precision"),
+        (add_op_p_byte, add_bw, "Accessor<d, d>"),
+        (adf_op_p_byte, adf_bw, "Accessor<d, s>"))
+    ax.axhline(1555.0, linestyle='--', marker='', linewidth=LineWidth, color=myblack, label="Peak double performance")
 
-fig, ax = create_fig_ax()
-#ax.plot(dbl_op_p_byte, dbl_bw, label="double", marker='x', markersize=8, color=myorange)
-plot_4(
-    ax, (dbl_op_p_byte, dbl_bw, "double precision"),
-    (flt_op_p_byte, flt_bw, "single precision"),
-    (add_op_p_byte, add_bw, "Accessor<d, d>"),
-    (adf_op_p_byte, adf_bw, "Accessor<d, s>"))
-ax.axhline(1555.0, linestyle='--', marker='', linewidth=LineWidth, color=myblack, label="Peak double performance")
+    ax.set_xlabel("FLOP / Byte")
+    ax.set_ylabel("GB / s")
+    #ax.legend(loc="best")
+    ax.legend(loc="lower left")
+    plot_figure(fig, "plots/roofline_bandwidth_d3_a100.pdf")
 
-#ax.axhline(9746.0, linestyle='--', label="Peak double performance")
-#ax.axhline(19490.0, linestyle='--', label="Peak single performance")
+    ### Start second plot:
+    fig, ax = create_fig_ax()
+    plot_4(
+        ax, (dbl_op_p_byte, dbl_gop, "double precision"),
+        (flt_op_p_byte, flt_gop, "single precision"),
+        (add_op_p_byte, add_gop, "Accessor<d, d>"),
+        (adf_op_p_byte, adf_gop, "Accessor<d, s>"))
 
-ax.set_xlabel("FLOP / Byte")
-ax.set_ylabel("GB / s")
-#ax.legend(loc="best")
-ax.legend(loc="lower left")
-#ax.loglog()
-plot_figure(fig, "plots/test.pdf")
+    ax.axhline(9746.0, linestyle='--', marker='', linewidth=LineWidth, color=myblack, label="Peak double performance")
+    ax.axhline(19490.0, linestyle='--', marker='', linewidth=LineWidth, color=myblack, label="Peak single performance")
 
-### Start second plot:
-fig, ax = create_fig_ax()
-ax.plot(dbl_op_p_byte, dbl_bw, label="double", marker='o', markersize=8)
-ax.set_xlabel("FLOP / Byte")
-ax.set_ylabel("GB / s")
-ax.legend()
-
-plot_figure(fig, "plots/test2.pdf")
+    ax.set_xlabel("FLOP / Byte")
+    ax.set_ylabel("FLOP / s")
+    #ax.legend(loc="best")
+    ax.legend(loc="lower right")
+    plot_figure(fig, "plots/roofline_performance_d3_a100.pdf")
