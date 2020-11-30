@@ -13,7 +13,7 @@ void print_header() {
     // clang-format off
     std::cout << std::right;
     std::cout << std::setw(12) << "Precision"
-              << SEP << std::setw(11) << "[GOPs/s]"
+              << SEP << std::setw(11) << "[GOP/s]"
               << SEP << std::setw(11) << "BW [GB/s]"
               << SEP << std::setw(11) << "time [ms]"
               << SEP << std::setw(13) << "computations"
@@ -21,6 +21,7 @@ void print_header() {
               << SEP << std::setw(10) << "Outer Its"
               << SEP << std::setw(10) << "Inner Its"
               << SEP << std::setw(9) << "Comp Its"
+              << SEP << std::setw(11) << "# Elements"
               << NL;
     // clang-format on
 }
@@ -39,6 +40,7 @@ void print_info(const benchmark_info &info) {
               << SEP << std::setw(10) << info.outer_work_iters
               << SEP << std::setw(10) << info.inner_work_iters
               << SEP << std::setw(9) << info.compute_iters
+              << SEP << std::setw(11) << info.num_elems
               << NL;
     // clang-format on
 }
