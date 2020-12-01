@@ -129,13 +129,14 @@ def plot_for_all(ax, data, x_key, y_key):
 
 
 if __name__ == "__main__":
-    # Make sure the folder `plots` exists
+    # Change to the directory where the script is placed
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
+    # Make sure the folder `plots` exists
     if not os.path.exists('plots'):
         os.makedirs('plots')
 
-    data_dict, i_dict = read_csv()
+    data_dict, i_dict = read_csv("../20201125_A100_roofline_d3.csv")
 
     filt_lambda = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 8
     data_dict = filter_data(data_dict, filt_lambda)
