@@ -5,9 +5,10 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 
+### dictionary to match purpose to CSV header
 h_dict = {
         "prec" : "Precision",
-        "GOP": "[GOPs/s]", # Will change to '[GOP/s]
+        "GOPS": "[GOPs/s]", # Will change to '[GOP/s]
         "BW": "BW [GB/s]",
         "time": "time [ms]",
         "comps": "computations",
@@ -16,6 +17,7 @@ h_dict = {
         "iiters": "Inner Its",
         "citers": "Comp Its",
         "#elms": "# Elements"
+        # "OP_pb": "Operations per Byte [OP / Byte]"
         }
 
 def read_csv(path=None):
@@ -33,14 +35,14 @@ def read_csv(path=None):
         print("The csv file is opened")
         csv_f = csv.reader(f, delimiter=';', skipinitialspace=True)
         header = next(csv_f)
-        print(header)
+        print("CSV header: {}".format(header))
         
         i_dict = {}
         for key, val in h_dict.items():
             for i in range(len(header)):
                 if header[i] == val:
                     i_dict[key] = i
-        print(i_dict)
+        print("Resulting index dictionary: {}".format(i_dict))
 
         data = []
 
@@ -93,17 +95,17 @@ MarkerSize = 8
 
 
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
-if not os.path.exists('plots'):
-    os.makedirs('plots')
-
 ### Save as PDF
-def plot_figure(fig, name):
-    with PdfPages(name) as export_pdf:
+def plot_figure(fig, file_path):
+    """Plots the given figure fig as a file located at file_path"""
+    with PdfPages(file_path) as export_pdf:
         export_pdf.savefig(fig, bbox_inches='tight', pad_inches=0)
 
 def create_fig_ax():
+    """
+    Creates a tuple of figure and axis for future plots.
+    The size, the visibility of the grid and the log-scale of x and y is preset
+    """
     fig, ax = plt.subplots(figsize=(10, 4))
     grid_minor_color = (.9, .9, .9)
     grid_major_color = (.8, .8, .8)
@@ -112,72 +114,100 @@ def create_fig_ax():
     ax.loglog()
     return fig, ax
 
-def plot_4(ax, xy1, xy2, xy3, xy4):
-    ax.plot(xy1[0], xy1[1], label=xy1[2], marker='X', color=mygreen, linewidth=LineWidth, markersize=MarkerSize)
-    ax.plot(xy2[0], xy2[1], label=xy2[2],  marker='P', color=myblue, linewidth=LineWidth, markersize=MarkerSize)
-    ax.plot(xy3[0], xy3[1], label=xy3[2],  marker='x', color=myorange, linewidth=LineWidth, markersize=MarkerSize)
-    ax.plot(xy4[0], xy4[1], label=xy4[2],  marker='+', color=myyellow, linewidth=LineWidth, markersize=MarkerSize)
+def plot_for_all(ax, data, x_key, y_key):
+    """
+    plots given x and y keys for all precisions of interest on the axis ax.
+    """
+    markers = ('X', 'P', 'x', '+')
+    colors = (mygreen, myblue, myorange, myyellow)
+    precs = ("double", "float",  "Ac<3, d, d>", "Ac<3, d, f>")
+    labels = ("double precision", "single precision",  "Accessor<d, d>", "Accessor<d, s>")
+    for i in range(len(precs)):
+        ax.plot(data[precs[i]][x_key], data[precs[i]][y_key], label=labels[i],
+                marker=markers[i], color=colors[i], linewidth=LineWidth,
+                markersize=MarkerSize)
 
 
 if __name__ == "__main__":
+    # Make sure the folder `plots` exists
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+    if not os.path.exists('plots'):
+        os.makedirs('plots')
+
     data_dict, i_dict = read_csv()
 
     filt_lambda = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 8
     data_dict = filter_data(data_dict, filt_lambda)
 
-    # Prepare data later used for plotting
-    dbl = data_dict["double"]
-    dbl_op_p_byte = [int(line[i_dict["comps"]]) / int(line[i_dict["size"]]) for line in dbl]
-    dbl_op_p_val = [x / 8 for x in dbl_op_p_byte]
-    dbl_bw = [float(line[i_dict["BW"]]) for line in dbl]
-    dbl_gop = [float(line[i_dict["GOP"]]) for line in dbl]
+    # Generate data for plotting for all available precisions
+    plot_data = {}
+    # TODO: when available, use "elems" instead
+    #       Here, it is assumed that "double" is always available, and all have the same number of elements
+    num_elems = int(int(data_dict["double"][0][i_dict["size"]]) / 8)
+    for key, lines in data_dict.items():
+        current_dict = {"OP_pb": [], "OP_pv": [], "GOPS": [], "BW": []}
+        for line in lines:
+            size_i = i_dict["size"]
+            bw_i = i_dict["BW"]
+            ops_i = i_dict["GOPS"]
+            comp_i = i_dict["comps"]
+            current_dict["OP_pb"].append(int(line[comp_i]) / int(line[size_i]))
+            current_dict["OP_pv"].append(int(line[comp_i]) / num_elems)
+            current_dict["GOPS"].append(float(line[ops_i]))
+            current_dict["BW"].append(float(line[bw_i]))
 
-    flt = data_dict["float"]
-    flt_op_p_byte = [int(line[i_dict["comps"]]) / int(line[i_dict["size"]]) for line in flt]
-    flt_op_p_val = [x / 4 for x in flt_op_p_byte]
-    flt_bw = [float(line[i_dict["BW"]]) for line in flt]
-    flt_gop = [float(line[i_dict["GOP"]]) for line in flt]
-
-    add = data_dict["Ac<3, d, d>"]
-    add_op_p_byte = [int(line[i_dict["comps"]]) / int(line[i_dict["size"]]) for line in add]
-    add_op_p_val = [x / 8 for x in add_op_p_byte]
-    add_bw = [float(line[i_dict["BW"]]) for line in add]
-    add_gop = [float(line[i_dict["GOP"]]) for line in add]
-
-    adf = data_dict["Ac<3, d, f>"]
-    adf_op_p_byte = [int(line[i_dict["comps"]]) / int(line[i_dict["size"]]) for line in adf]
-    adf_op_p_val = [x / 4 for x in adf_op_p_byte]
-    adf_bw = [float(line[i_dict["BW"]]) for line in adf]
-    adf_gop = [float(line[i_dict["GOP"]]) for line in adf]
+        plot_data[key] = current_dict
 
 
     fig, ax = create_fig_ax()
-    plot_4(
-        ax, (dbl_op_p_byte, dbl_bw, "double precision"),
-        (flt_op_p_byte, flt_bw, "single precision"),
-        (add_op_p_byte, add_bw, "Accessor<d, d>"),
-        (adf_op_p_byte, adf_bw, "Accessor<d, s>"))
-    ax.axhline(1555.0, linestyle='--', marker='', linewidth=LineWidth, color=myblack, label="Peak double performance")
+    plot_for_all(ax, plot_data, "OP_pb", "BW")
+    ax.axhline(1555.0, linestyle='--', marker='', linewidth=LineWidth,
+            color=myblack, label="Peak double performance")
 
-    ax.set_xlabel("FLOP / Byte")
-    ax.set_ylabel("GB / s")
+    ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
+    ax.set_ylabel("Bandwidth [GB / s]")
     #ax.legend(loc="best")
     ax.legend(loc="lower left")
-    plot_figure(fig, "plots/roofline_bandwidth_d3_a100.pdf")
+    plot_figure(fig, "plots/roofline_bandwidth_pai_d3_a100.pdf")
 
-    ### Start second plot:
+
     fig, ax = create_fig_ax()
-    plot_4(
-        ax, (dbl_op_p_byte, dbl_gop, "double precision"),
-        (flt_op_p_byte, flt_gop, "single precision"),
-        (add_op_p_byte, add_gop, "Accessor<d, d>"),
-        (adf_op_p_byte, adf_gop, "Accessor<d, s>"))
+    plot_for_all(ax, plot_data, "OP_pv", "BW")
+    ax.axhline(1555.0, linestyle='--', marker='', linewidth=LineWidth,
+            color=myblack, label="Peak double performance")
 
-    ax.axhline(9746.0, linestyle='--', marker='', linewidth=LineWidth, color=myblack, label="Peak double performance")
-    ax.axhline(19490.0, linestyle='--', marker='', linewidth=LineWidth, color=myblack, label="Peak single performance")
+    ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
+    ax.set_ylabel("Bandwidth [GB / s]")
+    ax.legend(loc="lower left")
+    plot_figure(fig, "plots/roofline_bandwidth_pv_d3_a100.pdf")
 
-    ax.set_xlabel("FLOP / Byte")
-    ax.set_ylabel("FLOP / s")
+
+    fig, ax = create_fig_ax()
+    plot_for_all(ax, plot_data, "OP_pb", "GOPS")
+
+    ax.axhline(9746.0, linestyle='--', marker='', linewidth=LineWidth,
+            color=myblack, label="Peak double performance")
+    ax.axhline(19490.0, linestyle='--', marker='', linewidth=LineWidth,
+            color=myblack, label="Peak single performance")
+
+    ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
+    ax.set_ylabel("Compute Performance [FLOP / s]")
     #ax.legend(loc="best")
     ax.legend(loc="lower right")
-    plot_figure(fig, "plots/roofline_performance_d3_a100.pdf")
+    plot_figure(fig, "plots/roofline_performance_pai_d3_a100.pdf")
+
+
+    fig, ax = create_fig_ax()
+    plot_for_all(ax, plot_data, "OP_pv", "GOPS")
+
+    ax.axhline(9746.0, linestyle='--', marker='', linewidth=LineWidth,
+            color=myblack, label="Peak double performance")
+    ax.axhline(19490.0, linestyle='--', marker='', linewidth=LineWidth,
+            color=myblack, label="Peak single performance")
+
+    ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
+    ax.set_ylabel("Compute Performance [FLOP / s]")
+    #ax.legend(loc="best")
+    ax.legend(loc="lower right")
+    plot_figure(fig, "plots/roofline_performance_pv_d3_a100.pdf")
