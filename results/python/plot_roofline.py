@@ -88,24 +88,13 @@ mygreen   = (0.4660, 0.6740, 0.1880);
 mycyan    = (0.3010, 0.7450, 0.9330);
 myred     = (0.6350, 0.0780, 0.1840);
 myblack   = (0.2500, 0.2500, 0.2500);
+mybrown   = (0.6500, 0.1600, 0.1600);
 
 ### Other globals
 LineWidth = 1
 MarkerSize = 8
 
 
-
-### Save as PDF
-def plot_figure(fig, file_path):
-    """Plots the given figure fig as a file located at file_path"""
-    p_bbox = "tight"
-    p_pad = 0
-    p_dpi = 300  # Only useful for non-scalable formats
-    
-    with PdfPages(file_path+".pdf") as export_pdf:
-        export_pdf.savefig(fig, dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad)
-    fig.savefig(file_path+".svg", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="svg")
-    fig.savefig(file_path+".png", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="png")
 
 def create_fig_ax():
     """
@@ -119,6 +108,18 @@ def create_fig_ax():
     ax.grid(True, which="minor", axis="both", linestyle=':', linewidth=1, color=grid_minor_color)
     ax.loglog()
     return fig, ax
+
+
+def plot_figure(fig, file_path):
+    """Plots the given figure fig as various formats with a base-name of file_path"""
+    p_bbox = "tight"
+    p_pad = 0
+    p_dpi = 300  # Only useful for non-scalable formats
+    with PdfPages(file_path+".pdf") as export_pdf:
+        export_pdf.savefig(fig, dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad)
+    fig.savefig(file_path+".svg", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="svg")
+    fig.savefig(file_path+".png", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="png")
+
 
 def plot_for_all(ax, data, x_key, y_key):
     """
@@ -196,7 +197,7 @@ if __name__ == "__main__":
     ax.axhline(9746.0, linestyle='--', marker='', linewidth=LineWidth,
             color=myblack, label="Peak double performance")
     ax.axhline(19490.0, linestyle='--', marker='', linewidth=LineWidth,
-            color=myblack, label="Peak single performance")
+            color=mybrown, label="Peak single performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
     ax.set_ylabel("Compute Performance [FLOP / s]")
@@ -211,7 +212,7 @@ if __name__ == "__main__":
     ax.axhline(9746.0, linestyle='--', marker='', linewidth=LineWidth,
             color=myblack, label="Peak double performance")
     ax.axhline(19490.0, linestyle='--', marker='', linewidth=LineWidth,
-            color=myblack, label="Peak single performance")
+            color=mybrown, label="Peak single performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
     ax.set_ylabel("Compute Performance [FLOP / s]")
