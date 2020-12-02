@@ -98,8 +98,14 @@ MarkerSize = 8
 ### Save as PDF
 def plot_figure(fig, file_path):
     """Plots the given figure fig as a file located at file_path"""
-    with PdfPages(file_path) as export_pdf:
-        export_pdf.savefig(fig, bbox_inches='tight', pad_inches=0)
+    p_bbox = "tight"
+    p_pad = 0
+    p_dpi = 300  # Only useful for non-scalable formats
+    
+    with PdfPages(file_path+".pdf") as export_pdf:
+        export_pdf.savefig(fig, dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad)
+    fig.savefig(file_path+".svg", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="svg")
+    fig.savefig(file_path+".png", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="png")
 
 def create_fig_ax():
     """
@@ -170,7 +176,7 @@ if __name__ == "__main__":
     ax.set_ylabel("Bandwidth [GB / s]")
     #ax.legend(loc="best")
     ax.legend(loc="lower left")
-    plot_figure(fig, "plots/roofline_bandwidth_pai_d3_a100.pdf")
+    plot_figure(fig, "plots/roofline_bandwidth_pai_d3_a100")
 
 
     fig, ax = create_fig_ax()
@@ -181,7 +187,7 @@ if __name__ == "__main__":
     ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
     ax.set_ylabel("Bandwidth [GB / s]")
     ax.legend(loc="lower left")
-    plot_figure(fig, "plots/roofline_bandwidth_pv_d3_a100.pdf")
+    plot_figure(fig, "plots/roofline_bandwidth_pv_d3_a100")
 
 
     fig, ax = create_fig_ax()
@@ -196,7 +202,7 @@ if __name__ == "__main__":
     ax.set_ylabel("Compute Performance [FLOP / s]")
     #ax.legend(loc="best")
     ax.legend(loc="lower right")
-    plot_figure(fig, "plots/roofline_performance_pai_d3_a100.pdf")
+    plot_figure(fig, "plots/roofline_performance_pai_d3_a100")
 
 
     fig, ax = create_fig_ax()
@@ -211,4 +217,4 @@ if __name__ == "__main__":
     ax.set_ylabel("Compute Performance [FLOP / s]")
     #ax.legend(loc="best")
     ax.legend(loc="lower right")
-    plot_figure(fig, "plots/roofline_performance_pv_d3_a100.pdf")
+    plot_figure(fig, "plots/roofline_performance_pv_d3_a100")
