@@ -214,7 +214,7 @@ if __name__ == "__main__":
     ax.axhline(19490.0, linestyle='--', marker='', linewidth=LineWidth,
             color=mybrown, label="Peak single performance")
 
-    ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
+    ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
     ax.set_ylabel("Compute Performance [FLOP / s]")
     #ax.legend(loc="best")
     ax.legend(loc="lower right")
