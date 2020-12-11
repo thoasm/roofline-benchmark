@@ -1,0 +1,4 @@
+Add option to test bandwidth in the following 3 approaches:
+- Read-only
+- Write-only
+- Combined
