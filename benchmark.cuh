@@ -1,8 +1,9 @@
 #pragma once
 
+#include <accessor/range.hpp>
+#include <accessor/reduced_row_major.hpp>
+#include <array>
 #include <cinttypes>
-#include <core/base/accessors.hpp>
-#include <ginkgo/core/base/range.hpp>
 #include <random>
 #include <string>
 #include <type_traits>
@@ -113,7 +114,7 @@ __global__ void benchmark_accessor_kernel(const Input input, Accessor acc) {
 #pragma unroll
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
             reg[i] = acc(o, i, idx);
-            //reg[i] = acc(idx + i * inner_stride + o * outer_stride);
+            // reg[i] = acc(idx + i * inner_stride + o * outer_stride);
 #pragma unroll 128
             for (std::int32_t c = 0; c < compute_iters; ++c) {
                 reg[i] = reg[i] * reg[i] + input;
@@ -127,7 +128,7 @@ __global__ void benchmark_accessor_kernel(const Input input, Accessor acc) {
         // Intentionally is never true
         if (reduced == static_cast<value_type>(-1)) {
             acc(o, 0, idx) = reduced;
-            //acc(idx + o * outer_stride) = reduced;
+            // acc(idx + o * outer_stride) = reduced;
         }
     }
 
@@ -136,7 +137,7 @@ __global__ void benchmark_accessor_kernel(const Input input, Accessor acc) {
     for (std::int32_t o = 0; o < outer_work_iters; ++o) {
 #pragma unroll
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
-            //const value_type mem =
+            // const value_type mem =
             //    acc(idx + i * inner_stride + o * outer_stride);
             const value_type mem = acc(o, i, idx);
             reg = mem * input + reg;
@@ -148,7 +149,7 @@ __global__ void benchmark_accessor_kernel(const Input input, Accessor acc) {
         // Intentionally is never true
         if (reg == static_cast<value_type>(-1)) {
             acc(o, 0, idx) = reg;
-            //acc(idx + o * outer_stride) = reg;
+            // acc(idx + o * outer_stride) = reg;
         }
     }
 #endif  // USE_ARRAY
@@ -261,18 +262,18 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
     } else if (prec == Precision::AccessorKeep) {
         //*
         constexpr std::size_t dimensionality{3};
-        gko::dim<dimensionality> size{outer_work_iters, inner_work_iters,
-                         info.total_threads};
+        std::array<std::size_t, dimensionality> size{
+            outer_work_iters, inner_work_iters, info.total_threads};
         /*/
         constexpr std::size_t dimensionality{1};
-        gko::dim<dimensionality> size{outer_work_iters * inner_work_iters *
-                                      info.total_threads};
+        std::array<std::size_t, dimensionality> size{outer_work_iters *
+        inner_work_iters * info.total_threads};
         //*/
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
                          ", " + typeid(T).name() + ", " + typeid(T).name() +
                          ">";
-        using accessor = gko::accessor::reduced_row_major<dimensionality, T, T>;
-        using range = gko::range<accessor>;
+        using accessor = gko::acc::reduced_row_major<dimensionality, T, T>;
+        using range = gko::acc::range<accessor>;
         auto acc = range(size, data_ptr);
         // Warmup
         benchmark_accessor_kernel<block_size, outer_work_iters,
@@ -297,20 +298,20 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
         auto lower_ptr = reinterpret_cast<lower_precision *>(data_ptr);
         //*
         constexpr std::size_t dimensionality{3};
-        gko::dim<dimensionality> size{outer_work_iters, inner_work_iters,
-                         info.total_threads};
+        std::array<std::size_t, dimensionality> size{
+            outer_work_iters, inner_work_iters, info.total_threads};
         /*/
         constexpr std::size_t dimensionality{1};
-        gko::dim<dimensionality> size{outer_work_iters * inner_work_iters *
-                                      info.total_threads};
+        std::array<std::size_t, dimensionality> size{outer_work_iters *
+        inner_work_iters * info.total_threads};
         //*/
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
                          ", " + typeid(T).name() + ", " +
                          typeid(lower_precision).name() + ">";
         info.size_bytes = info.num_elems * sizeof(lower_precision);
-        using accessor = gko::accessor::reduced_row_major<dimensionality, T,
+        using accessor = gko::acc::reduced_row_major<dimensionality, T,
                                                           lower_precision>;
-        using range = gko::range<accessor>;
+        using range = gko::acc::range<accessor>;
         auto acc = range(size, lower_ptr);
         // Warmup
         benchmark_accessor_kernel<block_size, outer_work_iters,

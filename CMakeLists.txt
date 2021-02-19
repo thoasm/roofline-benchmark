@@ -23,8 +23,6 @@ set(GINKGO_DIR
     #"$ENV{HOME}/projects/ginkgo_accessor"
     )
 target_include_directories(roofline_cuda PRIVATE
-    "${GINKGO_DIR}/include"
-    "${GINKGO_DIR}/build/release/include"
     "${GINKGO_DIR}"
     )
 

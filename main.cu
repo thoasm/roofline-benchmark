@@ -126,7 +126,7 @@ int main() {
     constexpr std::size_t num_elems = 128 * 1024 * 1024;
     constexpr std::int32_t block_size = 256;
 
-    //*
+    /*
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
                         v_type<double, Precision::AccessorReduced>,
