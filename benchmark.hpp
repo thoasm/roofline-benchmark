@@ -1,5 +1,5 @@
-#ifndef BENCHMARK_CUH_
-#define BENCHMARK_CUH_
+#ifndef BENCHMARK_HPP_
+#define BENCHMARK_HPP_
 
 #include <accessor/range.hpp>
 #include <accessor/reduced_row_major.hpp>
@@ -68,8 +68,8 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
     };
     using lower_precision = std::conditional_t<
         std::is_same<T, double>::value, float,
-        std::conditional_t<std::is_same<T, std::int32_t>::value,
-                           std::int16_t, T>>;
+        std::conditional_t<std::is_same<T, std::int32_t>::value, std::int16_t,
+                           T>>;
     auto lower_ptr = reinterpret_cast<lower_precision *>(data_ptr);
     auto run_lower_accessor_kernel = [&]() {
         run_benchmark_accessor<T, lower_precision, block_size, outer_work_iters,
@@ -109,7 +109,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
                          ", " + typeid(T).name() + ", " +
                          typeid(lower_precision).name() + ">";
         info.size_bytes = info.num_elems * sizeof(lower_precision);
-        
+
         // Warmup
         run_lower_accessor_kernel();
         CUDA_CALL(cudaDeviceSynchronize());
@@ -126,4 +126,4 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
     return info;
 }
 
-#endif  // BENCHMARK_CUH_
+#endif  // BENCHMARK_HPP_
