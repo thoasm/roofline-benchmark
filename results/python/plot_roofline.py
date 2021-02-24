@@ -128,7 +128,7 @@ def plot_for_all(ax, data, x_key, y_key):
     markers = ('X', 'P', 'x', '+')
     colors = (mygreen, myblue, myorange, myyellow)
     precs = ("double", "float",  "Ac<3, d, d>", "Ac<3, d, f>")
-    labels = ("double precision", "single precision",  "Accessor<d, d>", "Accessor<d, s>")
+    labels = ("fp64", "fp32",  "Accessor<fp64, fp64>", "Accessor<fp64, fp32>")
     for i in range(len(precs)):
         ax.plot(data[precs[i]][x_key], data[precs[i]][y_key], label=labels[i],
                 marker=markers[i], color=colors[i], linewidth=LineWidth,
@@ -171,7 +171,7 @@ if __name__ == "__main__":
     fig, ax = create_fig_ax()
     plot_for_all(ax, plot_data, "OP_pb", "BW")
     ax.axhline(1555.0, linestyle='--', marker='', linewidth=LineWidth,
-            color=myblack, label="Peak double performance")
+            color=myblack, label="Peak fp64 performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
     ax.set_ylabel("Bandwidth [GB / s]")
@@ -183,7 +183,7 @@ if __name__ == "__main__":
     fig, ax = create_fig_ax()
     plot_for_all(ax, plot_data, "OP_pv", "BW")
     ax.axhline(1555.0, linestyle='--', marker='', linewidth=LineWidth,
-            color=myblack, label="Peak double performance")
+            color=myblack, label="Peak fp64 performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
     ax.set_ylabel("Bandwidth [GB / s]")
@@ -195,9 +195,9 @@ if __name__ == "__main__":
     plot_for_all(ax, plot_data, "OP_pb", "GOPS")
 
     ax.axhline(9746.0, linestyle='--', marker='', linewidth=LineWidth,
-            color=myblack, label="Peak double performance")
+            color=myblack, label="Peak fp64 performance")
     ax.axhline(19490.0, linestyle='--', marker='', linewidth=LineWidth,
-            color=mybrown, label="Peak single performance")
+            color=mybrown, label="Peak fp32 performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
     ax.set_ylabel("Compute Performance [FLOP / s]")
@@ -210,9 +210,9 @@ if __name__ == "__main__":
     plot_for_all(ax, plot_data, "OP_pv", "GOPS")
 
     ax.axhline(9746.0, linestyle='--', marker='', linewidth=LineWidth,
-            color=myblack, label="Peak double performance")
+            color=myblack, label="Peak fp64 performance")
     ax.axhline(19490.0, linestyle='--', marker='', linewidth=LineWidth,
-            color=mybrown, label="Peak single performance")
+            color=mybrown, label="Peak fp32 performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
     ax.set_ylabel("Compute Performance [FLOP / s]")
