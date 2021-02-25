@@ -5,6 +5,10 @@ option(ROOFLINE_CUDA "Build the CUDA benchmark" ON)
 option(ROOFLINE_HIP "Build the HIP benchmark" OFF)
 option(ROOFLINE_CPU "Build the CPU benchmark" OFF)
 
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting build type to 'Release' as none was specified.")
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+endif()
 
 set(GINKGO_DIR "$ENV{HOME}/projects/ginkgo_github" CACHE PATH
     "Directory of Ginkgo")
@@ -74,6 +78,11 @@ if (ROOFLINE_CUDA)
 endif()
 
 if (ROOFLINE_HIP)
+    string(TOUPPER ${CMAKE_BUILD_TYPE} UPPER_BUILD_TYPE)
+    # NDEBUG must be set manually for HIP
+    if ("${UPPER_BUILD_TYPE}" STREQUAL "RELEASE")
+        set(OPTIONAL_NDEBUG "-DNDEBUG")
+    endif()
     # Modified version of: https://github.com/ROCm-Developer-Tools/HIP/blob/master/samples/2_Cookbook/12_cmake_hip_add_executable/CMakeLists.txt
     if(NOT DEFINED HIP_PATH)
         if(NOT DEFINED ENV{HIP_PATH})
@@ -94,7 +103,10 @@ if (ROOFLINE_HIP)
 
     set(MY_SOURCE_FILES "hip/main.hip.cpp")
     set(MY_TARGET_NAME "${target}")
-    set(MY_HIPCC_OPTIONS "-std=c++14") # Needs to be added again
+    set(MY_HIPCC_OPTIONS
+        "-std=c++14" # Needs to be added again
+        "${OPTIONAL_NDEBUG}" # If release, define NDEBUG
+        )
     set(MY_HCC_OPTIONS)
     set(MY_NVCC_OPTIONS "--expt-relaxed-constexpr")
 

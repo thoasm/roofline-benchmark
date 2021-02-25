@@ -2,6 +2,10 @@
 // cinttypes
 // exec_helper.hpp for ceildiv
 
+#ifndef NDEBUG
+#warning "NDEBUG NOT present! Performance will be sub-optiomal!"
+#endif
+
 /**
  * Note: when changing the `input` type to int, followed by casting it to `T` /
  * `value_type`, both the Accessor and the Pointer implementation are

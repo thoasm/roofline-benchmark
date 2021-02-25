@@ -143,6 +143,7 @@ int main() {
                        15, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 512>
         compute_list;
     /*/
+    //*
     // HIP compile time: 25:00
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
@@ -152,8 +153,9 @@ int main() {
         type_list;
     constexpr val_list<i_type, 4> outer_list;
     constexpr val_list<i_type, 8> inner_list;
-    constexpr val_list<i_type, 0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512> compute_list;
-    /*
+    constexpr val_list<i_type, 0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512>
+        compute_list;
+    /*/
     // This is a very small list for debugging purposes
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
@@ -168,14 +170,14 @@ int main() {
     std::default_random_engine engine(r_device());
     std::uniform_int_distribution<std::int32_t> dist(1, 1000);
     // std::int32_t  rand_val{dist(engine)};
-    std::int32_t rand_val{1};
+    std::int8_t rand_val{1};
 
     std::cout << "num_elems = " << num_elems << "; Array is "
               << (USE_ARRAY ? "used" : "NOT used") << "; " << '\n';
 
     // MUST be the largest type of all `type_list` types
     memory<double> data(num_elems);
-    data.memset(1);
+    data.memset(rand_val);
 
     // Warmup
     run_benchmark<double, block_size, 1, 2, 1>(
