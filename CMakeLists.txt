@@ -78,11 +78,15 @@ if (ROOFLINE_CUDA)
 endif()
 
 if (ROOFLINE_HIP)
-    string(TOUPPER ${CMAKE_BUILD_TYPE} UPPER_BUILD_TYPE)
-    # NDEBUG must be set manually for HIP
-    if ("${UPPER_BUILD_TYPE}" STREQUAL "RELEASE")
-        set(OPTIONAL_NDEBUG "-DNDEBUG")
-    endif()
+    # setting the default flags like CMAKE_{LANG}_FLAGS_{TYPE}
+    # the setting is copied from the default CMAKE_CXX_FLAGS_{TYPE}
+    # NEEDS TO BE IN FRONT OF find_package(HIP)
+    set(HIP_HIPCC_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}" CACHE STRING "Flags used by the HIPCC compiler during DEBUG builds")
+    set(HIP_HIPCC_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL}" CACHE STRING "Flags used by the HIPCC compiler during MINSIZEREL builds")
+    set(HIP_HIPCC_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING "Flags used by the HIPCC compiler during RELEASE builds")
+    set(HIP_HIPCC_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}" CACHE STRING "Flags used by the HIPCC compiler during RELWITHDEBINFO builds")
+    
+
     # Modified version of: https://github.com/ROCm-Developer-Tools/HIP/blob/master/samples/2_Cookbook/12_cmake_hip_add_executable/CMakeLists.txt
     if(NOT DEFINED HIP_PATH)
         if(NOT DEFINED ENV{HIP_PATH})
