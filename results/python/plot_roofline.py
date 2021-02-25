@@ -5,10 +5,35 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 
+# Peak data: flops in GFLOPS; BW in GB/s
+peak_data = {}
+peak_data["radeon7"] = {
+        "fp64": 3360.0,
+        "fp32": 13440.0,
+        "fp16": 26880.0,
+        "bw": 1024.0
+        }
+peak_data["a100"] = {
+        "fp64": 9746.0,
+        "fp32": 19490.0,
+        "fp16": 77970.0,
+        "bw": 1555.0
+        }
+
+#csv_file = "../20201125_A100_roofline_d3.csv"
+#plot_prefix = "a100_"
+csv_file = "../20210225_1330_radeon7_debug.csv"
+plot_prefix = "radeon7_"
+plot_folder = "./plots/"
+#current_peak = peak_data["a100"]
+current_peak = peak_data["radeon7"]
+
+
 ### dictionary to match purpose to CSV header
 h_dict = {
         "prec" : "Precision",
-        "GOPS": "[GOPs/s]", # Will change to '[GOP/s]
+        #"GOPS": "[GOPs/s]", # Old value, changed to `[GOP/s]`
+        "GOPS": "[GOP/s]", # Will change to '[GOP/s]'
         "BW": "BW [GB/s]",
         "time": "time [ms]",
         "comps": "computations",
@@ -30,7 +55,7 @@ def read_csv(path=None):
        array / list for the correesponding key
     """
     if path == None:
-        path = "../20201125_A100_roofline_d3.csv"
+        raise Exception("No filename specified! Unable to read file.")
     with open(path, 'r') as f:
         print("The csv file is opened")
         csv_f = csv.reader(f, delimiter=';', skipinitialspace=True)
@@ -110,8 +135,12 @@ def create_fig_ax():
     return fig, ax
 
 
-def plot_figure(fig, file_path):
-    """Plots the given figure fig as various formats with a base-name of file_path"""
+def plot_figure(fig, file_name):
+    """Plots the given figure fig as various formats with a base-name of file_name.
+    plot_folder will be used as the filder for the file; plot_prefix will be the
+    prefix of each file."""
+
+    file_path = plot_folder + plot_prefix + file_name
     p_bbox = "tight"
     p_pad = 0
     p_dpi = 300  # Only useful for non-scalable formats
@@ -139,20 +168,23 @@ if __name__ == "__main__":
     # Change to the directory where the script is placed
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    # Make sure the folder `plots` exists
-    if not os.path.exists('plots'):
-        os.makedirs('plots')
+    # Make sure the plot folder exists
+    if not os.path.exists(plot_folder):
+        os.makedirs(plot_folder)
 
-    data_dict, i_dict = read_csv("../20201125_A100_roofline_d3.csv")
+    data_dict, i_dict = read_csv(csv_file)
 
     filt_lambda = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 8
     data_dict = filter_data(data_dict, filt_lambda)
 
     # Generate data for plotting for all available precisions
     plot_data = {}
-    # TODO: when available, use "elems" instead
-    #       Here, it is assumed that "double" is always available, and all have the same number of elements
-    num_elems = int(int(data_dict["double"][0][i_dict["size"]]) / 8)
+    use_global_elms = False
+    # When available, use "elems"
+    if "#elms" not in i_dict:
+        # Here, it is assumed that "double" is always available, and all have the same number of elements
+        use_global_elms = True
+        glob_num_elems = int(int(data_dict["double"][0][i_dict["size"]]) / 8)
     for key, lines in data_dict.items():
         current_dict = {"OP_pb": [], "OP_pv": [], "GOPS": [], "BW": []}
         for line in lines:
@@ -160,6 +192,11 @@ if __name__ == "__main__":
             bw_i = i_dict["BW"]
             ops_i = i_dict["GOPS"]
             comp_i = i_dict["comps"]
+            if use_global_elms:
+                num_elems = glob_num_elems
+            else:
+                num_elems = int(line[i_dict["#elms"]])
+
             current_dict["OP_pb"].append(int(line[comp_i]) / int(line[size_i]))
             current_dict["OP_pv"].append(int(line[comp_i]) / num_elems)
             current_dict["GOPS"].append(float(line[ops_i]))
@@ -170,52 +207,52 @@ if __name__ == "__main__":
 
     fig, ax = create_fig_ax()
     plot_for_all(ax, plot_data, "OP_pb", "BW")
-    ax.axhline(1555.0, linestyle='--', marker='', linewidth=LineWidth,
+    ax.axhline(current_peak["bw"], linestyle='--', marker='', linewidth=LineWidth,
             color=myblack, label="Peak fp64 performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
     ax.set_ylabel("Bandwidth [GB / s]")
     #ax.legend(loc="best")
     ax.legend(loc="lower left")
-    plot_figure(fig, "plots/roofline_bandwidth_pai_d3_a100")
+    plot_figure(fig, "roofline_bandwidth_pai_d3")
 
 
     fig, ax = create_fig_ax()
     plot_for_all(ax, plot_data, "OP_pv", "BW")
-    ax.axhline(1555.0, linestyle='--', marker='', linewidth=LineWidth,
+    ax.axhline(current_peak["bw"], linestyle='--', marker='', linewidth=LineWidth,
             color=myblack, label="Peak fp64 performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
     ax.set_ylabel("Bandwidth [GB / s]")
     ax.legend(loc="lower left")
-    plot_figure(fig, "plots/roofline_bandwidth_pv_d3_a100")
+    plot_figure(fig, "roofline_bandwidth_pv_d3")
 
 
     fig, ax = create_fig_ax()
     plot_for_all(ax, plot_data, "OP_pb", "GOPS")
 
-    ax.axhline(9746.0, linestyle='--', marker='', linewidth=LineWidth,
+    ax.axhline(current_peak["fp64"], linestyle='--', marker='', linewidth=LineWidth,
             color=myblack, label="Peak fp64 performance")
-    ax.axhline(19490.0, linestyle='--', marker='', linewidth=LineWidth,
+    ax.axhline(current_peak["fp32"], linestyle='--', marker='', linewidth=LineWidth,
             color=mybrown, label="Peak fp32 performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
     ax.set_ylabel("Compute Performance [FLOP / s]")
     #ax.legend(loc="best")
     ax.legend(loc="lower right")
-    plot_figure(fig, "plots/roofline_performance_pai_d3_a100")
+    plot_figure(fig, "roofline_performance_pai_d3")
 
 
     fig, ax = create_fig_ax()
     plot_for_all(ax, plot_data, "OP_pv", "GOPS")
 
-    ax.axhline(9746.0, linestyle='--', marker='', linewidth=LineWidth,
+    ax.axhline(current_peak["fp64"], linestyle='--', marker='', linewidth=LineWidth,
             color=myblack, label="Peak fp64 performance")
-    ax.axhline(19490.0, linestyle='--', marker='', linewidth=LineWidth,
+    ax.axhline(current_peak["fp32"], linestyle='--', marker='', linewidth=LineWidth,
             color=mybrown, label="Peak fp32 performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
     ax.set_ylabel("Compute Performance [FLOP / s]")
     #ax.legend(loc="best")
     ax.legend(loc="lower right")
-    plot_figure(fig, "plots/roofline_performance_pv_d3_a100")
+    plot_figure(fig, "roofline_performance_pv_d3")
