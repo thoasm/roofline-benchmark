@@ -24,7 +24,7 @@ if (ROOFLINE_CPU)
     target_compile_definitions("${target}" PRIVATE ROOFLINE_CPU_CODE)
 
     target_sources("${target}" PRIVATE
-        main.cpp
+        cpu/main.cpp
         )
 
     target_compile_options("${target}" PRIVATE
@@ -43,7 +43,7 @@ if (ROOFLINE_CUDA)
     # Force the language to be CUDA (works, but the main.cu approach is cleaner)
     # set_source_files_properties(main.cpp.inc PROPERTIES LANGUAGE CUDA)
     target_sources("${target}" PRIVATE
-        main.cu
+        cuda/main.cu
         )
 
 
@@ -92,7 +92,7 @@ if (ROOFLINE_HIP)
     endif()
     set(target "roofline_hip")
 
-    set(MY_SOURCE_FILES "main.hip.cpp")
+    set(MY_SOURCE_FILES "hip/main.hip.cpp")
     set(MY_TARGET_NAME "${target}")
     set(MY_HIPCC_OPTIONS "-std=c++14") # Needs to be added again
     set(MY_HCC_OPTIONS)

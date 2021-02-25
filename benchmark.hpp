@@ -14,11 +14,11 @@
 #include "exec_helper.hpp"
 
 #if ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_CUDA
-#include "benchmark_cuda.cuh"
+#include "cuda/benchmark_cuda.cuh"
 #elif ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_HIP
-#include "benchmark_hip.hip.hpp"
+#include "hip/benchmark_hip.hip.hpp"
 #elif ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_CPU
-#include "benchmark_cpu.hpp"
+#include "cpu/benchmark_cpu.hpp"
 #endif
 
 template <typename T>

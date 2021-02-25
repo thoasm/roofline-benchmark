@@ -10,11 +10,11 @@
 #include <iostream>
 #include <type_traits>
 
-#include "benchmark_info.hpp"
-#include "exec_helper.hpp"
+#include "../benchmark_info.hpp"
+#include "../exec_helper.hpp"
 
 //
-#include "device_kernels.hpp.inc"
+#include "../device_kernels.hpp.inc"
 
 template <typename T, std::int32_t block_size, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>

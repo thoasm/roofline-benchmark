@@ -37,11 +37,11 @@ class timer {
 */
 
 #if ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_CUDA
-#include "exec_cuda.cuh"
+#include "cuda/exec_cuda.cuh"
 #elif ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_HIP
-#include "exec_hip.hip.hpp"
+#include "hip/exec_hip.hip.hpp"
 #elif ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_CPU
-#include "exec_cpu.hpp"
+#include "cpu/exec_cpu.hpp"
 #endif
 
 #endif  // EXEC_HELPER_HPP_
