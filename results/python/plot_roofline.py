@@ -22,7 +22,7 @@ peak_data["a100"] = {
 
 #csv_file = "../20201125_A100_roofline_d3.csv"
 #plot_prefix = "a100_"
-csv_file = "../20210225_1330_radeon7_debug.csv"
+csv_file = "../20210225_1555_radeon7.csv"
 plot_prefix = "radeon7_"
 plot_folder = "./plots/"
 #current_peak = peak_data["a100"]
