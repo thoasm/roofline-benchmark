@@ -3,6 +3,7 @@
 
 #include <cinttypes>
 #include <cstddef>  // for std::size_t
+#include <string>
 
 #define USE_ARRAY 1
 

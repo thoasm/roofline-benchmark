@@ -1,25 +1,34 @@
-#pragma once
+#ifndef EXEC_CUDA_CUH_
+#define EXEC_CUDA_CUH_
 
 #include <vector>
+#include <cinttypes>
+#include <cstddef>
 #include <iostream>
+#include <stdexcept>
 
 
 #define CUDA_CALL(call)                                                  \
     do {                                                                 \
         auto err = call;                                                 \
-        if (err) {                                                       \
+        if (err != cudaSuccess) {                                        \
             std::cerr << "Cuda error in file " << __FILE__               \
                       << " L:" << __LINE__                               \
                       << "; Error: " << cudaGetErrorString(err) << '\n'; \
+            throw std::runtime_error(cudaGetErrorString(err));           \
         }                                                                \
     } while (false)
 
+
+void synchronize() {
+    CUDA_CALL(cudaDeviceSynchronize());
+}
 
 struct cuda_event {
    public:
     cuda_event() { CUDA_CALL(cudaEventCreate(&ev_)); }
 
-    ~cuda_event() { CUDA_CALL(cudaEventDestroy(ev_)); }
+    ~cuda_event() { cudaEventDestroy(ev_); }
 
     void reset() {
         CUDA_CALL(cudaEventDestroy(ev_));
@@ -32,18 +41,16 @@ struct cuda_event {
     cudaEvent_t ev_;
 };
 
-class cuda_timer {
+class timer {
 
    public:
     void start() {
         CUDA_CALL(cudaEventRecord(start_.get(), 0));
-        // ch_start_ = std::chrono::steady_clock::now();
     }
 
     void stop() {
         CUDA_CALL(cudaEventRecord(end_.get(), 0));
         CUDA_CALL(cudaEventSynchronize(end_.get()));
-        // ch_end_ = std::chrono::steady_clock::now();
     }
 
     void reset() {
@@ -55,27 +62,23 @@ class cuda_timer {
     double get_time() {
         float time{};
         CUDA_CALL(cudaEventElapsedTime(&time, start_.get(), end_.get()));
-        // std::chrono::duration<double> ch_time = ch_end_ - ch_start_;
         return time;
     }
 
    private:
     cuda_event start_;
     cuda_event end_;
-    //using time_point = decltype(std::chrono::steady_clock::now());
-    //time_point ch_start_;
-    //time_point ch_end_;
 };
 
 template <typename T>
-struct c_memory {
+struct memory {
    public:
-    c_memory(std::size_t num_elems)
+    memory(std::size_t num_elems)
         : num_elems_(num_elems), size_(num_elems_ * sizeof(T)) {
         CUDA_CALL(cudaMalloc(&data_, size_));
     }
 
-    ~c_memory() { CUDA_CALL(cudaFree(data_)); }
+    ~memory() { cudaFree(data_); }
 
     T *get() { return data_; }
 
@@ -83,11 +86,11 @@ struct c_memory {
 
     std::size_t get_byte_size() const { return size_; }
 
-    void memset(std::int32_t val) {
-        CUDA_CALL(cudaMemset(data_, val, size_ / sizeof(std::int32_t)));
+    void memset(std::int8_t val) {
+        CUDA_CALL(cudaMemset(data_, val, size_));
     }
 
-    std::vector<T> get_vector() {
+    std::vector<T> get_vector() const {
         std::vector<T> vec(num_elems_);
         CUDA_CALL(cudaMemcpy(vec.data(), data_, size_, cudaMemcpyDeviceToHost));
         return vec;
@@ -99,8 +102,5 @@ struct c_memory {
     std::size_t size_;
 };
 
-constexpr int ceildiv(std::size_t dividend, std::size_t divisor) {
-    return (dividend - 1) / divisor + 1;
-}
 
-
+#endif // EXEC_CUDA_CUH_

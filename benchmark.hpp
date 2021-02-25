@@ -5,14 +5,21 @@
 #include <accessor/reduced_row_major.hpp>
 #include <array>
 #include <cinttypes>
-#include <random>
 #include <string>
 #include <type_traits>
 #include <typeinfo>
 
-#include "benchmark_cuda.cuh"
 #include "benchmark_info.hpp"
-#include "helper.cuh"
+#include "config.hpp"
+#include "exec_helper.hpp"
+
+#if ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_CUDA
+#include "benchmark_cuda.cuh"
+#elif ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_HIP
+#include "benchmark_hip.hip.hpp"
+#elif ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_CPU
+#include "benchmark_cpu.hpp"
+#endif
 
 template <typename T>
 struct type_to_string {
@@ -25,11 +32,18 @@ struct type_to_string {
         static const char *get() { return #type_; } \
     }
 
+#define SPECIALIZE2_TYPE_TO_STRING(type_, str_)   \
+    template <>                                   \
+    struct type_to_string<type_> {                \
+        static const char *get() { return str_; } \
+    }
+
 SPECIALIZE_TYPE_TO_STRING(float);
 SPECIALIZE_TYPE_TO_STRING(double);
-SPECIALIZE_TYPE_TO_STRING(std::int32_t);
-SPECIALIZE_TYPE_TO_STRING(std::int16_t);
+SPECIALIZE2_TYPE_TO_STRING(std::int32_t, "int32");
+SPECIALIZE2_TYPE_TO_STRING(std::int16_t, "int16");
 #undef SPECIALIZE_TYPE_TO_STRING
+#undef SPECIALIZE2_TYPE_TO_STRING
 
 enum class Precision { Pointer, AccessorKeep, AccessorReduced };
 
@@ -79,30 +93,31 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
 
     // auto i_input = static_cast<std::int32_t>(input);
     double time_{0};
+    timer t;
     if (prec == Precision::Pointer) {
         run_hand_kernel();
-        CUDA_CALL(cudaDeviceSynchronize());
+        synchronize();
 
         for (int i = 0; i < average_iters; ++i) {
-            cuda_timer timer_;
-            timer_.start();
+            t.start();
             run_hand_kernel();
-            timer_.stop();
-            time_ += timer_.get_time();
+            t.stop();
+            time_ += t.get_time();
+            t.reset();
         }
     } else if (prec == Precision::AccessorKeep) {
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
                          ", " + typeid(T).name() + ", " + typeid(T).name() +
                          ">";
         run_accessor_kernel();
-        CUDA_CALL(cudaDeviceSynchronize());
+        synchronize();
 
         for (int i = 0; i < average_iters; ++i) {
-            cuda_timer timer_;
-            timer_.start();
+            t.start();
             run_accessor_kernel();
-            timer_.stop();
-            time_ += timer_.get_time();
+            t.stop();
+            time_ += t.get_time();
+            t.reset();
         }
     } else {
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
@@ -112,14 +127,14 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
 
         // Warmup
         run_lower_accessor_kernel();
-        CUDA_CALL(cudaDeviceSynchronize());
+        synchronize();
 
         for (int i = 0; i < average_iters; ++i) {
-            cuda_timer timer_;
-            timer_.start();
+            t.start();
             run_lower_accessor_kernel();
-            timer_.stop();
-            time_ += timer_.get_time();
+            t.stop();
+            time_ += t.get_time();
+            t.reset();
         }
     }
     info.time_ms = time_ / static_cast<double>(average_iters);

@@ -5,7 +5,7 @@
 
 #include "benchmark.hpp"
 #include "benchmark_info.hpp"
-#include "helper.cuh"
+#include "exec_helper.hpp"
 
 constexpr char SEP = ';';
 constexpr char NL = '\n';
@@ -142,6 +142,7 @@ int main() {
                        15, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 512>
         compute_list;
     /*/
+    // This is a very small list for debugging purposes
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
                         v_type<double, Precision::AccessorReduced>>
@@ -156,13 +157,12 @@ int main() {
     std::uniform_int_distribution<std::int32_t> dist(1, 1000);
     // std::int32_t  rand_val{dist(engine)};
     std::int32_t rand_val{1};
-    cudaSetDevice(0);
 
     std::cout << "num_elems = " << num_elems << "; Array is "
               << (USE_ARRAY ? "used" : "NOT used") << "; " << '\n';
 
-    c_memory<double> data(
-        num_elems);  // MUST be the largest type of all `type_list` types
+    // MUST be the largest type of all `type_list` types
+    memory<double> data(num_elems);
     data.memset(1);
 
     // Warmup
@@ -170,7 +170,7 @@ int main() {
         num_elems, static_cast<double>(rand_val), data.get());
 
     print_header();
-    CUDA_CALL(cudaDeviceSynchronize());
+    synchronize();
     run_benchmark_variations<block_size>(type_list, outer_list, inner_list,
                                          compute_list, num_elems, rand_val,
                                          data.get());
