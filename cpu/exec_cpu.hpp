@@ -29,7 +29,7 @@ class timer {
     // Returns the time in ms
     double get_time() {
         std::chrono::duration<double> ch_time = ch_end_ - ch_start_;
-        return ch_time.count() / 1e3;
+        return ch_time.count() * 1e3;
     }
 
    private:

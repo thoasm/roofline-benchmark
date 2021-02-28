@@ -22,8 +22,10 @@ endfunction()
 
 
 if (ROOFLINE_CPU)
+    find_package(OpenMP REQUIRED)
     set(target "roofline_cpu")
     add_executable("${target}")
+    target_link_libraries("${target}" PUBLIC OpenMP::OpenMP_CXX)
     roofline_apply_default_target_settings("${target}")
     target_compile_definitions("${target}" PRIVATE ROOFLINE_CPU_CODE)
 
@@ -34,7 +36,7 @@ if (ROOFLINE_CPU)
     target_compile_options("${target}" PRIVATE
         $<$<COMPILE_LANGUAGE:HIP>:--expt-relaxed-constexpr>
         )
-    target_compile_options("${target}" PRIVATE -Wall -Wextra -pedantic -Werror)
+    target_compile_options("${target}" PRIVATE -Wall -Wextra -pedantic -march=native)
 endif()
 
 if (ROOFLINE_CUDA)
