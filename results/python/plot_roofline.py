@@ -208,7 +208,7 @@ if __name__ == "__main__":
     fig, ax = create_fig_ax()
     plot_for_all(ax, plot_data, "OP_pb", "BW")
     ax.axhline(current_peak["bw"], linestyle='--', marker='', linewidth=LineWidth,
-            color=myblack, label="Peak fp64 performance")
+            color=myblack, label="Peak bandwidth")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
     ax.set_ylabel("Bandwidth [GB / s]")
@@ -220,7 +220,7 @@ if __name__ == "__main__":
     fig, ax = create_fig_ax()
     plot_for_all(ax, plot_data, "OP_pv", "BW")
     ax.axhline(current_peak["bw"], linestyle='--', marker='', linewidth=LineWidth,
-            color=myblack, label="Peak fp64 performance")
+            color=myblack, label="Peak bandwidth")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
     ax.set_ylabel("Bandwidth [GB / s]")
@@ -237,7 +237,7 @@ if __name__ == "__main__":
             color=mybrown, label="Peak fp32 performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
-    ax.set_ylabel("Compute Performance [FLOP / s]")
+    ax.set_ylabel("Compute Performance [GFLOP / s]")
     #ax.legend(loc="best")
     ax.legend(loc="lower right")
     plot_figure(fig, "roofline_performance_pai_d3")
@@ -252,7 +252,7 @@ if __name__ == "__main__":
             color=mybrown, label="Peak fp32 performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
-    ax.set_ylabel("Compute Performance [FLOP / s]")
+    ax.set_ylabel("Compute Performance [GFLOP / s]")
     #ax.legend(loc="best")
     ax.legend(loc="lower right")
     plot_figure(fig, "roofline_performance_pv_d3")
