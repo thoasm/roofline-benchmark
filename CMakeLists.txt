@@ -36,7 +36,13 @@ if (ROOFLINE_CPU)
     target_compile_options("${target}" PRIVATE
         $<$<COMPILE_LANGUAGE:HIP>:--expt-relaxed-constexpr>
         )
-    target_compile_options("${target}" PRIVATE -Wall -Wextra -pedantic -march=native)
+    target_compile_options("${target}" PRIVATE 
+        -Wall
+        -Wextra
+        -pedantic
+        -march=native
+        -Wno-unused-parameter
+        )
 endif()
 
 if (ROOFLINE_CUDA)

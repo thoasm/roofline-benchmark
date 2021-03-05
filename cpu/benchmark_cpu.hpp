@@ -20,7 +20,7 @@ void run_benchmark_hand(std::size_t num_elems, T input, T *data) {
         ceildiv(num_elems, inner_work_iters * outer_work_iters);
     const std::int64_t outer_stride = inner_work_iters;
     const std::int64_t parallel_stride = outer_stride * outer_work_iters;
-#pragma openmp parallel for schedule(static, 128) simd
+#pragma omp parallel for
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
 #if USE_ARRAY
         // TODO: Add USE_ARRAY preprocessor
@@ -28,9 +28,9 @@ void run_benchmark_hand(std::size_t num_elems, T input, T *data) {
             std::array<T, inner_work_iters> reg;
             for (std::int32_t i = 0; i < inner_work_iters; ++i) {
                 reg[i] = data[pi * parallel_stride + o * outer_stride + i];
-#pragma unroll
                 // TODO Problem: can't be unrolled with FMA because of
                 //               dependency
+                //#pragma unroll
                 for (std::int32_t c = 0; c < compute_iters; ++c) {
                     reg[i] = reg[i] * reg[i] + input;
                 }
@@ -72,7 +72,7 @@ void run_benchmark_accessor(std::size_t num_elems, ArType input,
     using range = gko::acc::range<accessor>;
     auto acc = range(size, data_ptr);
 
-#pragma openmp parallel for
+#pragma omp parallel for
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
 #if USE_ARRAY
         // TODO: Add USE_ARRAY preprocessor
@@ -80,7 +80,7 @@ void run_benchmark_accessor(std::size_t num_elems, ArType input,
             std::array<ArType, inner_work_iters> reg;
             for (std::int32_t i = 0; i < inner_work_iters; ++i) {
                 reg[i] = acc(pi, o, i);
-#pragma unroll
+                //#pragma unroll
                 for (std::int32_t c = 0; c < compute_iters; ++c) {
                     reg[i] = reg[i] * reg[i] + input;
                 }

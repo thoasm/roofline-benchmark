@@ -124,7 +124,7 @@ void run_benchmark_variations(type_list<T, RemTypes...>, Args... args) {
 
 int main() {
     using i_type = std::int32_t;
-    constexpr std::size_t num_elems = 128 * 1024 * 1024;
+    constexpr std::size_t num_elems = 256 * 1024 * 1024;
     constexpr std::int32_t block_size = 256;
 
     /*
@@ -138,8 +138,8 @@ int main() {
                         v_type<int, Precision::Pointer>,
                         v_type<int, Precision::AccessorReduced>>
         type_list;
-    constexpr val_list<i_type, 1, 4> outer_list;
-    constexpr val_list<i_type, 4, 8> inner_list;
+    constexpr val_list<i_type, 4> outer_list;
+    constexpr val_list<i_type, 8> inner_list;
     constexpr val_list<i_type, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
                        15, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 512>
         compute_list;
@@ -162,18 +162,20 @@ int main() {
     // This is a very small list for debugging purposes
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
+                        v_type<float, Precision::Pointer>,
+                        v_type<float, Precision::AccessorKeep>,
                         v_type<double, Precision::AccessorReduced>>
         type_list;
     constexpr val_list<i_type, 4> outer_list;
     constexpr val_list<i_type, 8> inner_list;
-    constexpr val_list<i_type, 0, 64> compute_list;
+    constexpr val_list<i_type, 0, 32> compute_list;
     //*/
 
     std::random_device r_device;
     std::default_random_engine engine(r_device());
     std::uniform_int_distribution<std::int32_t> dist(1, 1000);
     // std::int32_t  rand_val{dist(engine)};
-    std::int8_t rand_val{1};
+    std::int8_t rand_val{0};
 
     std::cout << "num_elems = " << num_elems << "; Array is "
               << (USE_ARRAY ? "used" : "NOT used") << "; " << '\n';
