@@ -16,12 +16,12 @@
 //
 #include "../device_kernels.hpp.inc"
 
-template <typename T, std::int32_t block_size, std::int32_t outer_work_iters,
+template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-void run_benchmark_hand(std::size_t num_elems, T input, T *data_ptr) {
-    const dim3 block_(block_size);
-    const dim3 grid_(
-        ceildiv(num_elems, inner_work_iters * outer_work_iters * block_size));
+std::size_t run_benchmark_hand(std::size_t num_elems, T input, T *data_ptr) {
+    const dim3 block_(default_block_size);
+    const dim3 grid_(ceildiv(
+        num_elems, inner_work_iters * outer_work_iters * default_block_size));
     if (grid_.y != 1 || grid_.z != 1) {
         std::cerr << "Grid is expected to only have x-dimension!\n";
     }
@@ -29,18 +29,20 @@ void run_benchmark_hand(std::size_t num_elems, T input, T *data_ptr) {
         std::cerr << "Block is expected to only have x-dimension!\n";
     }
 
-    benchmark_kernel<block_size, outer_work_iters, inner_work_iters,
+    benchmark_kernel<default_block_size, outer_work_iters, inner_work_iters,
                      compute_iters, T><<<grid_, block_>>>(input, data_ptr);
+    return calculate_computations<outer_work_iters, inner_work_iters,
+                                  compute_iters, T>(num_elems);
 }
 
-template <typename ArType, typename StType, std::int32_t block_size,
-          std::int32_t outer_work_iters, std::int32_t inner_work_iters,
-          std::int32_t compute_iters, std::size_t dimensionality>
-void run_benchmark_accessor(std::size_t num_elems, ArType input,
+template <typename ArType, typename StType, std::int32_t outer_work_iters,
+          std::int32_t inner_work_iters, std::int32_t compute_iters,
+          std::size_t dimensionality>
+std::size_t run_benchmark_accessor(std::size_t num_elems, ArType input,
                             StType *data_ptr) {
-    const dim3 block_(block_size);
-    const dim3 grid_(
-        ceildiv(num_elems, inner_work_iters * outer_work_iters * block_size));
+    const dim3 block_(default_block_size);
+    const dim3 grid_(ceildiv(
+        num_elems, inner_work_iters * outer_work_iters * default_block_size));
     if (grid_.y != 1 || grid_.z != 1) {
         std::cerr << "Grid is expected to only have x-dimension!\n";
     }
@@ -65,9 +67,11 @@ void run_benchmark_accessor(std::size_t num_elems, ArType input,
     using range = gko::acc::range<accessor>;
     auto acc = range(size, data_ptr);
     // Warmup
-    benchmark_accessor_kernel<block_size, outer_work_iters, inner_work_iters,
-                              compute_iters, ArType, range>
+    benchmark_accessor_kernel<default_block_size, outer_work_iters,
+                              inner_work_iters, compute_iters, ArType, range>
         <<<grid_, block_>>>(input, acc);
+    return calculate_computations<outer_work_iters, inner_work_iters,
+                                  compute_iters, ArType>(num_elems);
 }
 
 #endif  // BENCHMARK_CUDA_CUH_

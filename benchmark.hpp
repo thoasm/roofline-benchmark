@@ -47,7 +47,7 @@ SPECIALIZE2_TYPE_TO_STRING(std::int16_t, "int16");
 
 enum class Precision { Pointer, AccessorKeep, AccessorReduced };
 
-template <typename T, std::int32_t block_size, std::int32_t outer_work_iters,
+template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
 benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
                              Precision prec = Precision::Pointer) {
@@ -55,29 +55,22 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
     benchmark_info info;
     // Precision prec = Precision::Pointer;
 
-    info.total_threads =
-        ceildiv(num_elems, inner_work_iters * outer_work_iters * block_size) *
-        block_size;
-
     info.precision = type_to_string<T>::get();
-    info.block_size = block_size;
     info.outer_work_iters = outer_work_iters;
     info.inner_work_iters = inner_work_iters;
     info.compute_iters = compute_iters;
     info.num_elems = num_elems;
     info.size_bytes = num_elems * sizeof(T);
 
-    info.calculate_computations();
-
     constexpr std::size_t dimensionality{3};
 
     auto run_hand_kernel = [&]() {
-        run_benchmark_hand<T, block_size, outer_work_iters, inner_work_iters,
-                           compute_iters>(num_elems, input, data_ptr);
+        return run_benchmark_hand<T, outer_work_iters, inner_work_iters,
+                                  compute_iters>(num_elems, input, data_ptr);
     };
     auto run_accessor_kernel = [&]() {
-        run_benchmark_accessor<T, T, block_size, outer_work_iters,
-                               inner_work_iters, compute_iters, dimensionality>(
+        return run_benchmark_accessor<T, T, outer_work_iters, inner_work_iters,
+                                      compute_iters, dimensionality>(
             num_elems, input, data_ptr);
     };
     using lower_precision = std::conditional_t<
@@ -86,16 +79,17 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
                            T>>;
     auto lower_ptr = reinterpret_cast<lower_precision *>(data_ptr);
     auto run_lower_accessor_kernel = [&]() {
-        run_benchmark_accessor<T, lower_precision, block_size, outer_work_iters,
-                               inner_work_iters, compute_iters, dimensionality>(
-            num_elems, input, lower_ptr);
+        return run_benchmark_accessor<T, lower_precision, outer_work_iters,
+                                      inner_work_iters, compute_iters,
+                                      dimensionality>(num_elems, input,
+                                                      lower_ptr);
     };
 
     // auto i_input = static_cast<std::int32_t>(input);
     double time_{0};
     timer t;
     if (prec == Precision::Pointer) {
-        run_hand_kernel();
+        info.computations = run_hand_kernel();
         synchronize();
 
         for (int i = 0; i < average_iters; ++i) {
@@ -109,7 +103,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
                          ", " + typeid(T).name() + ", " + typeid(T).name() +
                          ">";
-        run_accessor_kernel();
+        info.computations = run_accessor_kernel();
         synchronize();
 
         for (int i = 0; i < average_iters; ++i) {
@@ -126,7 +120,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
         info.size_bytes = info.num_elems * sizeof(lower_precision);
 
         // Warmup
-        run_lower_accessor_kernel();
+        info.computations = run_lower_accessor_kernel();
         synchronize();
 
         for (int i = 0; i < average_iters; ++i) {

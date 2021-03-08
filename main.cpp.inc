@@ -61,71 +61,70 @@ struct v_type {
 };
 
 // For compute resolution
-template <std::int32_t block_size, typename T, typename IT, IT outer, IT inner,
-          typename... Args>
+template <typename T, typename IT, IT outer, IT inner, typename... Args>
 void run_benchmark_variations_compute(val_list<IT>, Args... args) {}
 
-template <std::int32_t block_size, typename T, typename IT, IT outer, IT inner,
-          IT compute_k, IT... rem_compute>
+template <typename T, typename IT, IT outer, IT inner, IT compute_k,
+          IT... rem_compute>
 void run_benchmark_variations_compute(val_list<IT, compute_k, rem_compute...>,
-                                      std::size_t num_elems, std::int32_t r_val,
-                                      void *data) {
+                                      std::size_t num_elems,
+                                      std::int32_t r_val) {
     using value_type = typename T::type;
     auto prec = T::p;
-    auto info = run_benchmark<value_type, block_size, outer, inner, compute_k>(
-        num_elems, static_cast<value_type>(r_val),
-        reinterpret_cast<value_type *>(data), prec);
-    print_info(info);
+    {
+        memory<value_type> data(num_elems);
+        // Note: Memory is not initialized in order to get put to the correct
+        //       core. However, it is possible that optimizations might require
+        //       proper initialization.
+        auto info = run_benchmark<value_type, outer, inner, compute_k>(
+            num_elems, static_cast<value_type>(r_val), data.get(), prec);
+        print_info(info);
+    }
     // recursion
-    run_benchmark_variations_compute<block_size, T, IT, outer, inner>(
-        val_list<IT, rem_compute...>{}, num_elems, r_val, data);
+    run_benchmark_variations_compute<T, IT, outer, inner>(
+        val_list<IT, rem_compute...>{}, num_elems, r_val);
 }
 
 // For inner resolution
-template <std::int32_t block_size, typename T, typename IT, IT outer,
-          typename... Args>
+template <typename T, typename IT, IT outer, typename... Args>
 void run_benchmark_variations_inner(val_list<IT>, Args... args) {}
 
-template <std::int32_t block_size, typename T, typename IT, IT outer,
-          IT inner_k, IT... rem_inner, typename... Args>
+template <typename T, typename IT, IT outer, IT inner_k, IT... rem_inner,
+          typename... Args>
 void run_benchmark_variations_inner(val_list<IT, inner_k, rem_inner...>,
                                     Args... args) {
-    run_benchmark_variations_compute<block_size, T, IT, outer, inner_k>(
-        args...);
+    run_benchmark_variations_compute<T, IT, outer, inner_k>(args...);
     // recursion
-    run_benchmark_variations_inner<block_size, T, IT, outer>(
-        val_list<IT, rem_inner...>{}, args...);
+    run_benchmark_variations_inner<T, IT, outer>(val_list<IT, rem_inner...>{},
+                                                 args...);
 }
 
 // For outer resolution
-template <std::int32_t block_size, typename T, typename IT, typename... Args>
+template <typename T, typename IT, typename... Args>
 void run_benchmark_variations_outer(val_list<IT>, Args...) {}
 
-template <std::int32_t block_size, typename T, typename IT, IT outer_k,
-          IT... rem_outer, typename... Args>
+template <typename T, typename IT, IT outer_k, IT... rem_outer,
+          typename... Args>
 void run_benchmark_variations_outer(val_list<IT, outer_k, rem_outer...>,
                                     Args... args) {
-    run_benchmark_variations_inner<block_size, T, IT, outer_k>(args...);
+    run_benchmark_variations_inner<T, IT, outer_k>(args...);
     // recursion
-    run_benchmark_variations_outer<block_size, T>(val_list<IT, rem_outer...>{},
-                                                  args...);
+    run_benchmark_variations_outer<T>(val_list<IT, rem_outer...>{}, args...);
 }
 
-template <std::int32_t block_size, typename... Args>
+template <typename... Args>
 void run_benchmark_variations(type_list<>, Args...) {}
 
-template <std::int32_t block_size, typename T, typename... RemTypes,
-          typename... Args>
+template <typename T, typename... RemTypes, typename... Args>
 void run_benchmark_variations(type_list<T, RemTypes...>, Args... args) {
-    run_benchmark_variations_outer<block_size, T>(args...);
+    run_benchmark_variations_outer<T>(args...);
     // recursion
-    run_benchmark_variations<block_size>(type_list<RemTypes...>{}, args...);
+    run_benchmark_variations(type_list<RemTypes...>{}, args...);
 }
 
 int main() {
     using i_type = std::int32_t;
     constexpr std::size_t num_elems = 256 * 1024 * 1024;
-    constexpr std::int32_t block_size = 256;
 
     /*
     // HIP compile time (Debug): 2:05:00 (125 min)
@@ -167,8 +166,8 @@ int main() {
                         v_type<double, Precision::AccessorReduced>>
         type_list;
     constexpr val_list<i_type, 4> outer_list;
-    constexpr val_list<i_type, 8> inner_list;
-    constexpr val_list<i_type, 0, 32> compute_list;
+    constexpr val_list<i_type, 16> inner_list;
+    constexpr val_list<i_type, 32> compute_list;
     //*/
 
     std::random_device r_device;
@@ -177,20 +176,23 @@ int main() {
     // std::int32_t  rand_val{dist(engine)};
     std::int8_t rand_val{0};
 
+    /*
     std::cout << "num_elems = " << num_elems << "; Array is "
               << (USE_ARRAY ? "used" : "NOT used") << "; " << '\n';
+    */
 
-    // MUST be the largest type of all `type_list` types
-    memory<double> data(num_elems);
-    data.memset(rand_val);
+    {
+        // MUST be the largest type of all `type_list` types
+        memory<double> data(num_elems);
+        data.memset(rand_val);
 
-    // Warmup
-    run_benchmark<double, block_size, 1, 2, 1>(
-        num_elems, static_cast<double>(rand_val), data.get());
+        // Warmup
+        run_benchmark<double, 1, 2, 1>(num_elems, static_cast<double>(rand_val),
+                                       data.get());
+    }
 
     print_header();
     synchronize();
-    run_benchmark_variations<block_size>(type_list, outer_list, inner_list,
-                                         compute_list, num_elems, rand_val,
-                                         data.get());
+    run_benchmark_variations(type_list, outer_list, inner_list, compute_list,
+                             num_elems, rand_val);
 }

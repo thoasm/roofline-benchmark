@@ -6,6 +6,23 @@
 #warning "NDEBUG NOT present! Performance will be sub-optiomal!"
 #endif
 
+#define USE_ARRAY 1
+
+constexpr std::int32_t default_block_size{256};
+
+// Returns the number of computations performed by both kernels (since they are
+// identical)
+template <std::int32_t outer_work_iters, std::int32_t inner_work_iters,
+          std::int32_t compute_iters, typename T>
+constexpr std::size_t calculate_computations(std::size_t num_elems) {
+#if USE_ARRAY
+    return num_elems * (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2);
+    // Note: 2/2(==1) because: 2 for FMA for inner/2 iterations
+#else
+    return num_elems * static_cast<std::size_t>(compute_iters + 1) * 2;
+#endif
+}
+
 /**
  * Note: when changing the `input` type to int, followed by casting it to `T` /
  * `value_type`, both the Accessor and the Pointer implementation are

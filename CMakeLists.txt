@@ -33,9 +33,6 @@ if (ROOFLINE_CPU)
         cpu/main.cpp
         )
 
-    target_compile_options("${target}" PRIVATE
-        $<$<COMPILE_LANGUAGE:HIP>:--expt-relaxed-constexpr>
-        )
     target_compile_options("${target}" PRIVATE 
         -Wall
         -Wextra
