@@ -126,7 +126,7 @@ int main() {
     using i_type = std::int32_t;
     constexpr std::size_t num_elems = 256 * 1024 * 1024;
 
-    //*
+    /*
     // HIP compile time (Debug): 2:05:00 (125 min)
     // HIP compile time (Release): 00:01:21 (1.3 min)
     constexpr type_list<v_type<double, Precision::Pointer>,
@@ -142,8 +142,7 @@ int main() {
     constexpr val_list<i_type, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
                        15, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 512>
         compute_list;
-    /*/
-    /*
+    //
     // HIP compile time (Debug): 25:00
     // HIP compile time (Release): 00:08 (8s)
     constexpr type_list<v_type<double, Precision::Pointer>,
@@ -156,8 +155,7 @@ int main() {
     constexpr val_list<i_type, 8> inner_list;
     constexpr val_list<i_type, 0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512>
         compute_list;
-    //*/
-    /*
+    */
     // This is a very small list for debugging purposes
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
@@ -167,7 +165,7 @@ int main() {
         type_list;
     constexpr val_list<i_type, 4> outer_list;
     constexpr val_list<i_type, 8> inner_list;
-    constexpr val_list<i_type, 0, 32> compute_list;
+    constexpr val_list<i_type, 0, 1, 2, 4, 16, 32, 64> compute_list;
     //*/
 
     std::random_device r_device;

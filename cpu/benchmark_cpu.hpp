@@ -19,7 +19,9 @@
 
 //#define SINGLE_COMPUTATION true
 #define SINGLE_COMPUTATION false
+#define PARALLEL_FOR_SCHEDULE schedule(static, 1024)
 constexpr std::int32_t num_parallel_computations{4};
+
 
 // fakes reading from p (when p is an address, it forces the object to have an
 // address) and writing / touching all available memory
@@ -39,7 +41,7 @@ std::size_t run_benchmark_hand(const std::size_t num_elems, const T input,
     const std::int64_t outer_stride = inner_work_iters;
     const std::int64_t parallel_stride = outer_stride * outer_work_iters;
 #if SINGLE_COMPUTATION
-#pragma omp parallel for
+#pragma omp parallel for PARALLEL_FOR_SCHEDULE
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
             static_assert(inner_work_iters % 2 == 0,
@@ -66,7 +68,7 @@ std::size_t run_benchmark_hand(const std::size_t num_elems, const T input,
     }
     return num_elems * (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2);
 #else
-#pragma omp parallel for
+#pragma omp parallel for PARALLEL_FOR_SCHEDULE
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
             static_assert(inner_work_iters % 2 == 0,
@@ -205,7 +207,7 @@ std::size_t run_benchmark_accessor(const std::size_t num_elems,
     auto acc = range(size, data_ptr);
 
 #if SINGLE_COMPUTATION
-#pragma omp parallel for
+#pragma omp parallel for PARALLEL_FOR_SCHEDULE
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
             static_assert(inner_work_iters % 2 == 0,
@@ -234,7 +236,7 @@ std::size_t run_benchmark_accessor(const std::size_t num_elems,
     }
     return num_elems * (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2);
 #else
-#pragma omp parallel for
+#pragma omp parallel for PARALLEL_FOR_SCHEDULE
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
             static_assert(inner_work_iters % 2 == 0,
