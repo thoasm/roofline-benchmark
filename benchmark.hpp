@@ -5,9 +5,11 @@
 #include <accessor/reduced_row_major.hpp>
 #include <array>
 #include <cinttypes>
+#include <limits>
 #include <string>
 #include <type_traits>
 #include <typeinfo>
+#include <vector>
 
 #include "benchmark_info.hpp"
 #include "config.hpp"
@@ -46,6 +48,27 @@ SPECIALIZE2_TYPE_TO_STRING(std::int16_t, "int16");
 #undef SPECIALIZE2_TYPE_TO_STRING
 
 enum class Precision { Pointer, AccessorKeep, AccessorReduced };
+
+class time_series {
+   public:
+    using time_format = double;
+    time_series() { series.reserve(15); }
+
+    void add_time(time_format time) { series.push_back(time); }
+
+    time_format get_time() const {
+        auto reduced{std::numeric_limits<time_format>::max()};
+        for (const auto &t : series) {
+            if (t < reduced) {
+                reduced = t;
+            }
+        }
+        return reduced;
+    }
+
+   private:
+    std::vector<time_format> series;
+};
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
@@ -86,7 +109,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
     };
 
     // auto i_input = static_cast<std::int32_t>(input);
-    double time_{0};
+    time_series t_series;
     timer t;
     if (prec == Precision::Pointer) {
         info.computations = run_hand_kernel();
@@ -96,7 +119,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
             t.start();
             run_hand_kernel();
             t.stop();
-            time_ += t.get_time();
+            t_series.add_time(t.get_time());
             t.reset();
         }
     } else if (prec == Precision::AccessorKeep) {
@@ -110,7 +133,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
             t.start();
             run_accessor_kernel();
             t.stop();
-            time_ += t.get_time();
+            t_series.add_time(t.get_time());
             t.reset();
         }
     } else {
@@ -127,11 +150,11 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
             t.start();
             run_lower_accessor_kernel();
             t.stop();
-            time_ += t.get_time();
+            t_series.add_time(t.get_time());
             t.reset();
         }
     }
-    info.time_ms = time_ / static_cast<double>(average_iters);
+    info.time_ms = t_series.get_time();
     return info;
 }
 

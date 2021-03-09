@@ -17,14 +17,16 @@
 
 //
 
-#define SINGLE_COMPUTATION true
+//#define SINGLE_COMPUTATION true
+#define SINGLE_COMPUTATION false
+constexpr std::int32_t num_parallel_computations{4};
 
 // fakes reading from p (when p is an address, it forces the object to have an
 // address) and writing / touching all available memory
-static void escape(void *p) { asm volatile("" : : "g"(p) : "memory"); }
+// static void escape(void *p) { asm volatile("" : : "g"(p) : "memory"); }
 
 // fakes reading and writing all available memory
-static void clobber() { asm volatile("" : : : "memory"); }
+// static void clobber() { asm volatile("" : : : "memory"); }
 
 //
 
@@ -66,76 +68,117 @@ std::size_t run_benchmark_hand(const std::size_t num_elems, const T input,
 #else
 #pragma omp parallel for
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
-        /*
-        // Hand-vectorized version. ONLY works with double !!!
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
             static_assert(inner_work_iters % 2 == 0,
                           "inner_work_iters must be a multiple of 2!");
-            using vec_double = __m256d;
-            // const vec_double v_input = _mm256_broadcast_sd(&input);
-            const vec_double v_input = _mm256_set1_pd(input);
-            vec_double reg0{}, reg1{};
-            double reduced{};
-            for (std::int32_t i = 0; i < inner_work_iters; i += 8) {
-                reg0 = _mm256_loadu_pd(data + pi * parallel_stride +
-                                       o * outer_stride + i);
-                reg1 = _mm256_loadu_pd(data + pi * parallel_stride +
-                                       o * outer_stride + i + 4);
-                // reg = mem * input + reg;
+            std::array<T, inner_work_iters * num_parallel_computations> reg;
+            for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+                reg[i] = data[pi * parallel_stride + o * outer_stride + i];
+                for (std::int32_t nc = 1; nc < num_parallel_computations;
+                     ++nc) {
+                    reg[i + nc * inner_work_iters] = reg[i] + nc;
+                }
+            }
+            for (std::int32_t i = 0; i < inner_work_iters; ++i) {
                 //#pragma unroll
                 for (std::int32_t c = 0; c < compute_iters; ++c) {
-                    reg0 = _mm256_fmadd_pd(reg0, reg0, v_input);
-                    reg1 = _mm256_fmadd_pd(reg1, reg1, v_input);
-                    // reg = reg * reg + input;
-                }
-                union tmp {
-                    double d[4];
-                    vec_double vd;
-                } conv;
-                conv.vd = reg0;
-                reduced = conv.d[0] * conv.d[1] + reduced;
-                reduced = conv.d[2] * conv.d[3] + reduced;
-                conv.vd = reg1;
-                reduced = conv.d[0] * conv.d[1] + reduced;
-                reduced = conv.d[2] * conv.d[3] + reduced;
-                // reduced = _mm256_fmadd_pd(reg0, reg1, reduced);
-            }
-            // Is never true, but there to prevent optimization
-            if (reduced == -1) {
-                data[pi + o * outer_stride] = reduced;
-            }
-        }
-        */
-        for (std::int32_t o = 0; o < outer_work_iters; ++o) {
-            static_assert(inner_work_iters % 2 == 0,
-                          "inner_work_iters must be a multiple of 2!");
-            std::array<T, inner_work_iters> reg0;
-            std::array<T, inner_work_iters> reg1;
-            std::array<T, inner_work_iters> reg2;
-            for (std::int32_t i = 0; i < inner_work_iters; i += 1) {
-                reg0[i] = data[pi * parallel_stride + o * outer_stride + i];
-                reg1[i] = reg0[i];
-                reg2[i] = reg0[i];
-                for (std::int32_t c = 0; c < compute_iters; ++c) {
-                    reg0[i] = reg0[i] * reg0[i] + input;
-                    reg1[i] = input * reg1[i] + reg1[i];
-                    reg2[i] = reg2[i] * reg2[i] + reg2[i];
+                    for (std::int32_t nc = 0; nc < num_parallel_computations;
+                         ++nc) {
+                        auto idx = i + nc * inner_work_iters;
+                        reg[idx] = reg[idx] * reg[idx] + input;
+                    }
                 }
             }
+            //*/
             T reduced{};
             for (std::int32_t i = 0; i < inner_work_iters; i += 2) {
-                reduced = reg0[i] * reg0[i + 1] + reduced;
-                reduced = reg1[i] * reg1[i + 1] + reduced;
-                reduced = reg2[i] * reg2[i + 1] + reduced;
+                for (std::int32_t nc = 0; nc < num_parallel_computations;
+                     ++nc) {
+                    auto idx = i + nc * inner_work_iters;
+                    reduced = reg[idx] * reg[idx + 1] + reduced;
+                }
             }
             // Is never true, but there to prevent optimization
             if (reduced == static_cast<T>(-1)) {
-                data[pi * parallel_stride + o * outer_stride] = reduced;
+                data[pi + o * outer_stride] = reduced;
             }
         }
     }
-    return num_elems * 3 *
-           (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2);
+    return parallel_iters * outer_work_iters * inner_work_iters *
+           (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2) *
+           num_parallel_computations;
+/*
+// Hand-vectorized version. ONLY works with double !!!
+for (std::int32_t o = 0; o < outer_work_iters; ++o) {
+    static_assert(inner_work_iters % 2 == 0,
+                  "inner_work_iters must be a multiple of 2!");
+    using vec_double = __m256d;
+    // const vec_double v_input = _mm256_broadcast_sd(&input);
+    const vec_double v_input = _mm256_set1_pd(input);
+    vec_double reg0{}, reg1{};
+    double reduced{};
+    for (std::int32_t i = 0; i < inner_work_iters; i += 8) {
+        reg0 = _mm256_loadu_pd(data + pi * parallel_stride +
+                               o * outer_stride + i);
+        reg1 = _mm256_loadu_pd(data + pi * parallel_stride +
+                               o * outer_stride + i + 4);
+        // reg = mem * input + reg;
+        //#pragma unroll
+        for (std::int32_t c = 0; c < compute_iters; ++c) {
+            reg0 = _mm256_fmadd_pd(reg0, reg0, v_input);
+            reg1 = _mm256_fmadd_pd(reg1, reg1, v_input);
+            // reg = reg * reg + input;
+        }
+        union tmp {
+            double d[4];
+            vec_double vd;
+        } conv;
+        conv.vd = reg0;
+        reduced = conv.d[0] * conv.d[1] + reduced;
+        reduced = conv.d[2] * conv.d[3] + reduced;
+        conv.vd = reg1;
+        reduced = conv.d[0] * conv.d[1] + reduced;
+        reduced = conv.d[2] * conv.d[3] + reduced;
+        // reduced = _mm256_fmadd_pd(reg0, reg1, reduced);
+    }
+    // Is never true, but there to prevent optimization
+    if (reduced == -1) {
+        data[pi + o * outer_stride] = reduced;
+    }
+}
+*/
+/*
+for (std::int32_t o = 0; o < outer_work_iters; ++o) {
+    static_assert(inner_work_iters % 2 == 0,
+                  "inner_work_iters must be a multiple of 2!");
+    std::array<T, inner_work_iters> reg0;
+    std::array<T, inner_work_iters> reg1;
+    std::array<T, inner_work_iters> reg2;
+    for (std::int32_t i = 0; i < inner_work_iters; i += 1) {
+        reg0[i] = data[pi * parallel_stride + o * outer_stride + i];
+        reg1[i] = reg0[i];
+        reg2[i] = reg0[i];
+        for (std::int32_t c = 0; c < compute_iters; ++c) {
+            reg0[i] = reg0[i] * reg0[i] + input;
+            reg1[i] = input * reg1[i] + reg1[i];
+            reg2[i] = reg2[i] * reg2[i] + reg2[i];
+        }
+    }
+    T reduced{};
+    for (std::int32_t i = 0; i < inner_work_iters; i += 2) {
+        reduced = reg0[i] * reg0[i + 1] + reduced;
+        reduced = reg1[i] * reg1[i + 1] + reduced;
+        reduced = reg2[i] * reg2[i + 1] + reduced;
+    }
+    // Is never true, but there to prevent optimization
+    if (reduced == static_cast<T>(-1)) {
+        data[pi * parallel_stride + o * outer_stride] = reduced;
+    }
+}
+}
+return num_elems * 3 *
+   (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2);
+*/
 #endif
 }
 
@@ -196,24 +239,32 @@ std::size_t run_benchmark_accessor(const std::size_t num_elems,
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
             static_assert(inner_work_iters % 2 == 0,
                           "inner_work_iters must be a multiple of 2!");
-            std::array<ArType, inner_work_iters> reg0;
-            std::array<ArType, inner_work_iters> reg1;
-            std::array<ArType, inner_work_iters> reg2;
-            for (std::int32_t i = 0; i < inner_work_iters; i += 1) {
-                reg0[i] = acc(pi, o, i);
-                reg1[i] = reg0[i];
-                reg2[i] = reg0[i];
+            std::array<ArType, inner_work_iters * num_parallel_computations>
+                reg;
+            for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+                reg[i] = acc(pi, o, i);
+                for (std::int32_t nc = 1; nc < num_parallel_computations;
+                     ++nc) {
+                    reg[i + nc * inner_work_iters] = reg[i] + nc;
+                }
+            }
+            for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+                //#pragma unroll
                 for (std::int32_t c = 0; c < compute_iters; ++c) {
-                    reg0[i] = reg0[i] * reg0[i] + input;
-                    reg1[i] = input * reg1[i] + reg1[i];
-                    reg2[i] = reg2[i] * reg2[i] + reg2[i];
+                    for (std::int32_t nc = 0; nc < num_parallel_computations;
+                         ++nc) {
+                        auto idx = i + nc * inner_work_iters;
+                        reg[idx] = reg[idx] * reg[idx] + input;
+                    }
                 }
             }
             ArType reduced{};
             for (std::int32_t i = 0; i < inner_work_iters; i += 2) {
-                reduced = reg0[i] * reg0[i + 1] + reduced;
-                reduced = reg1[i] * reg1[i + 1] + reduced;
-                reduced = reg2[i] * reg2[i + 1] + reduced;
+                for (std::int32_t nc = 0; nc < num_parallel_computations;
+                     ++nc) {
+                    auto idx = i + nc * inner_work_iters;
+                    reduced = reg[idx] * reg[idx + 1] + reduced;
+                }
             }
             // Is never true, but there to prevent optimization
             if (reduced == static_cast<ArType>(-1)) {
@@ -221,8 +272,9 @@ std::size_t run_benchmark_accessor(const std::size_t num_elems,
             }
         }
     }
-    return num_elems * 3 *
-           (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2);
+    return parallel_iters * outer_work_iters * inner_work_iters *
+           (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2) *
+           num_parallel_computations;
 #endif
 }
 

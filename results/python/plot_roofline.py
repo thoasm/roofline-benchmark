@@ -20,9 +20,9 @@ peak_data["a100"] = {
         "bw": 1555.0
         }
 peak_data["3900X"] = {
-        "fp64": 235.0, # Estimated
-        "fp32": 470.0, # From Linpack benchmark https://www.pugetsystems.com/labs/hpc/AMD-3900X-Brief-Compute-Performance-Linpack-and-NAMD-1540/
-        "fp16": 0.0,
+        "fp64": 792.0, # Estimated with https://github.com/Mysticial/Flops
+        "fp32": 1579.0, # same as above
+        "fp16": 0.0, # No fp16 unit, therefore, 0
         "bw": 48.0
         }
 
@@ -33,7 +33,7 @@ plot_folder = "./plots/"
 csv_file = "../20210225_1555_radeon7.csv"
 plot_prefix = "radeon7_"
 current_peak = peak_data["radeon7"]
-csv_file = "../20210302_1120_Ryzen3900X_OMP24.csv"
+csv_file = "../20210309_0435_Ryzen3900X_OMP24.csv"
 plot_prefix = "3900X_"
 current_peak = peak_data["3900X"]
 
