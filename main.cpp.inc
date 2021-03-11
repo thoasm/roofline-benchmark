@@ -160,7 +160,7 @@ int main() {
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
                         v_type<float, Precision::Pointer>,
-                        v_type<float, Precision::AccessorKeep>,
+                        // v_type<float, Precision::AccessorKeep>,
                         v_type<double, Precision::AccessorReduced> >
         type_list;
     constexpr val_list<i_type, 256> outer_list;
