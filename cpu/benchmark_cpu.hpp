@@ -17,11 +17,11 @@
 
 //
 
-//#define SINGLE_COMPUTATION true
-#define SINGLE_COMPUTATION false
-#define PARALLEL_FOR_SCHEDULE schedule(static, 1024)
-constexpr std::int32_t num_parallel_computations{4};
-
+#define SINGLE_COMPUTATION true
+//#define SINGLE_COMPUTATION false
+#define PARALLEL_FOR_SCHEDULE schedule(static, 128)
+//#define PARALLEL_FOR_SCHEDULE
+constexpr std::int32_t num_parallel_computations{1};
 
 // fakes reading from p (when p is an address, it forces the object to have an
 // address) and writing / touching all available memory
@@ -34,8 +34,8 @@ constexpr std::int32_t num_parallel_computations{4};
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-std::size_t run_benchmark_hand(const std::size_t num_elems, const T input,
-                               T *data) {
+kernel_bytes_flops_result run_benchmark_hand(const std::size_t num_elems,
+                                             const T input, T *data) {
     const std::size_t parallel_iters =
         ceildiv(num_elems, inner_work_iters * outer_work_iters);
     const std::int64_t outer_stride = inner_work_iters;
@@ -46,6 +46,26 @@ std::size_t run_benchmark_hand(const std::size_t num_elems, const T input,
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
             static_assert(inner_work_iters % 2 == 0,
                           "inner_work_iters must be a multiple of 2!");
+            std::array<T, num_parallel_computations> reg{};
+            for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+                reg[0] = data[pi * parallel_stride + o * outer_stride + i];
+                for (std::int32_t nc = 1; nc < num_parallel_computations;
+                     ++nc) {
+                    reg[nc] = reg[0] + nc * input;
+                }
+                for (std::int32_t c = 0; c < compute_iters; ++c) {
+                    for (std::int32_t nc = 0; nc < num_parallel_computations;
+                         ++nc) {
+                        reg[nc] = reg[nc] * reg[nc] + input;
+                    }
+                }
+                for (std::int32_t nc = 1; nc < num_parallel_computations;
+                     ++nc) {
+                    reg[nc - 1] = reg[nc - 1] * reg[nc] + input;
+                }
+                data[pi * parallel_stride + o * outer_stride + i] = reg[0];
+            }
+            /*
             std::array<T, inner_work_iters> reg;
             for (std::int32_t i = 0; i < inner_work_iters; ++i) {
                 reg[i] = data[pi * parallel_stride + o * outer_stride + i];
@@ -56,17 +76,17 @@ std::size_t run_benchmark_hand(const std::size_t num_elems, const T input,
                     reg[i] = reg[i] * reg[i] + input;
                 }
             }
-            T reduced{};
-            for (std::int32_t i = 0; i < inner_work_iters; i += 2) {
-                reduced = reg[i] * reg[i + 1] + reduced;
+            // Write output to ensure that vectorization is easy
+            for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+                data[pi * parallel_stride + o * outer_stride + i] = reg[i];
             }
-            // Is never true, but there to prevent optimization
-            if (reduced == static_cast<T>(-1)) {
-                data[pi + o * outer_stride] = reduced;
-            }
+            */
         }
     }
-    return num_elems * (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2);
+    return {2 * num_elems * sizeof(T),
+            2 * num_elems *
+                (num_parallel_computations *
+                 static_cast<std::size_t>(compute_iters) * 2)};
 #else
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
@@ -106,9 +126,10 @@ std::size_t run_benchmark_hand(const std::size_t num_elems, const T input,
             }
         }
     }
-    return parallel_iters * outer_work_iters * inner_work_iters *
-           (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2) *
-           num_parallel_computations;
+    return {num_elems * sizeof(T),
+            parallel_iters * outer_work_iters * inner_work_iters *
+                (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2) *
+                num_parallel_computations};
 /*
 // Hand-vectorized version. ONLY works with double !!!
 for (std::int32_t o = 0; o < outer_work_iters; ++o) {
@@ -187,8 +208,9 @@ return num_elems * 3 *
 template <typename ArType, typename StType, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters,
           std::size_t dimensionality>
-std::size_t run_benchmark_accessor(const std::size_t num_elems,
-                                   const ArType input, StType *data_ptr) {
+kernel_bytes_flops_result run_benchmark_accessor(const std::size_t num_elems,
+                                                 const ArType input,
+                                                 StType *data_ptr) {
     const std::size_t parallel_iters =
         ceildiv(num_elems, inner_work_iters * outer_work_iters);
 
@@ -224,17 +246,14 @@ std::size_t run_benchmark_accessor(const std::size_t num_elems,
                     reg[i] = reg[i] * reg[i] + input;
                 }
             }
-            ArType reduced{};
-            for (std::int32_t i = 0; i < inner_work_iters; i += 2) {
-                reduced = reg[i] * reg[i + 1] + reduced;
-            }
-            // Is never true, but there to prevent optimization
-            if (reduced == static_cast<ArType>(-1)) {
-                acc(pi, o, 0) = reduced;
+            // Write output to ensure that vectorization is easy
+            for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+                acc(pi, o, i) = reg[i];
             }
         }
     }
-    return num_elems * (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2);
+    return {2 * num_elems * sizeof(StType),
+            2 * num_elems * (static_cast<std::size_t>(compute_iters) * 2)};
 #else
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
@@ -274,9 +293,10 @@ std::size_t run_benchmark_accessor(const std::size_t num_elems,
             }
         }
     }
-    return parallel_iters * outer_work_iters * inner_work_iters *
-           (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2) *
-           num_parallel_computations;
+    return {num_elems * sizeof(StType),
+            parallel_iters * outer_work_iters * inner_work_iters *
+                (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2) *
+                num_parallel_computations};
 #endif
 }
 

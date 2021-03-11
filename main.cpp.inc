@@ -37,7 +37,7 @@ void print_info(const benchmark_info &info) {
               << SEP << std::setw(11) << info.get_bw_gbs()
               << SEP << std::setw(11) << info.time_ms
               << SEP << std::setw(13) << info.computations
-              << SEP << std::setw(13) << info.size_bytes
+              << SEP << std::setw(13) << info.memory_moved_bytes
               << SEP << std::setw(10) << info.outer_work_iters
               << SEP << std::setw(10) << info.inner_work_iters
               << SEP << std::setw(9) << info.compute_iters
@@ -142,7 +142,7 @@ int main() {
     constexpr val_list<i_type, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
                        15, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 512>
         compute_list;
-    //
+    /*
     // HIP compile time (Debug): 25:00
     // HIP compile time (Release): 00:08 (8s)
     constexpr type_list<v_type<double, Precision::Pointer>,
@@ -155,7 +155,7 @@ int main() {
     constexpr val_list<i_type, 8> inner_list;
     constexpr val_list<i_type, 0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512>
         compute_list;
-    */
+    //*/
     // This is a very small list for debugging purposes
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
@@ -163,9 +163,9 @@ int main() {
                         v_type<float, Precision::AccessorKeep>,
                         v_type<double, Precision::AccessorReduced> >
         type_list;
-    constexpr val_list<i_type, 4> outer_list;
+    constexpr val_list<i_type, 256> outer_list;
     constexpr val_list<i_type, 8> inner_list;
-    constexpr val_list<i_type, 0, 1, 2, 4, 16, 32, 64> compute_list;
+    constexpr val_list<i_type, 0, 1, 2, 4, 16, 32, 64, 96, 128> compute_list;
     //*/
 
     std::random_device r_device;

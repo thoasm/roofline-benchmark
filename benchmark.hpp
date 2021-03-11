@@ -83,7 +83,6 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
     info.inner_work_iters = inner_work_iters;
     info.compute_iters = compute_iters;
     info.num_elems = num_elems;
-    info.size_bytes = num_elems * sizeof(T);
 
     constexpr std::size_t dimensionality{3};
 
@@ -112,7 +111,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
     time_series t_series;
     timer t;
     if (prec == Precision::Pointer) {
-        info.computations = run_hand_kernel();
+        info.set_kernel_info(run_hand_kernel());
         synchronize();
 
         for (int i = 0; i < average_iters; ++i) {
@@ -126,7 +125,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
                          ", " + typeid(T).name() + ", " + typeid(T).name() +
                          ">";
-        info.computations = run_accessor_kernel();
+        info.set_kernel_info(run_accessor_kernel());
         synchronize();
 
         for (int i = 0; i < average_iters; ++i) {
@@ -140,10 +139,9 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
                          ", " + typeid(T).name() + ", " +
                          typeid(lower_precision).name() + ">";
-        info.size_bytes = info.num_elems * sizeof(lower_precision);
 
         // Warmup
-        info.computations = run_lower_accessor_kernel();
+        info.set_kernel_info(run_lower_accessor_kernel());
         synchronize();
 
         for (int i = 0; i < average_iters; ++i) {

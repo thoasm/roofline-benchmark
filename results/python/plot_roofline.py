@@ -31,6 +31,18 @@ peak_data["3900X"] = {
         "fp16": 0.0, # No fp16 unit, therefore, 0
         "bw": 48.0
         }
+peak_data["bwuni"] = {
+        "fp64": 0.0,
+        "fp32": 0.0,
+        "fp16": 0.0,
+        "bw": 0.0
+        }
+peak_data["fhlr2"] = {
+        "fp64": 0.0,
+        "fp32": 0.0,
+        "fp16": 0.0,
+        "bw": 0.0
+        }
 
 plot_folder = "./plots/"
 
@@ -44,6 +56,10 @@ csv_file = "../20201125_A100_roofline_d3.csv"
 plot_prefix = "a100_"
 current_peak = peak_data["a100"]
 
+#csv_file = "../20201125_A100_roofline_d3.csv"
+#plot_prefix = "a100_"
+#current_peak = peak_data["a100"]
+
 csv_file = "../20210225_1555_radeon7.csv"
 plot_prefix = "radeon7_"
 current_peak = peak_data["radeon7"]
@@ -55,7 +71,20 @@ current_peak = peak_data["3900X"]
 csv_file = "../20210309_0435_Ryzen3900X_OMP24.csv"
 plot_prefix = "3900X_"
 current_peak = peak_data["3900X"]
+
+csv_file = "../20210310_0723_Ryzen3900X_OMP24_rm-c2.csv"
+plot_prefix = "3900X_"
+current_peak = peak_data["3900X"]
+
+csv_file = "../20210310_1000_bwuni_1s_intel.csv"
+plot_prefix = "bwuni_"
+current_peak = peak_data["bwuni"]
+
+csv_file = "../20210310_1000_fhlr2_1s_intel.csv"
+plot_prefix = "fhlr2_"
+current_peak = peak_data["fhlr2"]
 """
+
 
 ### dictionary to match purpose to CSV header
 h_dict = {
