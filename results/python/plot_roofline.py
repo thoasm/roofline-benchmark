@@ -19,6 +19,12 @@ peak_data["a100"] = {
         "fp16": 77970.0,
         "bw": 1555.0
         }
+peak_data["v100"] = {
+        "fp64": 7800.0,
+        "fp32": 15700.0,
+        "fp16": 125000.0, # TENSOR performance, not pure FP16
+        "bw": 900.0
+        }
 peak_data["3900X"] = {
         "fp64": 792.0, # Estimated with https://github.com/Mysticial/Flops
         "fp32": 1579.0, # same as above
@@ -27,16 +33,29 @@ peak_data["3900X"] = {
         }
 
 plot_folder = "./plots/"
-#csv_file = "../20201125_A100_roofline_d3.csv"
-#plot_prefix = "a100_"
-#current_peak = peak_data["a100"]
+
+
+csv_file = "../20210311_1730_V100_summit.csv"
+plot_prefix = "v100_"
+current_peak = peak_data["v100"]
+
+"""
+csv_file = "../20201125_A100_roofline_d3.csv"
+plot_prefix = "a100_"
+current_peak = peak_data["a100"]
+
 csv_file = "../20210225_1555_radeon7.csv"
 plot_prefix = "radeon7_"
 current_peak = peak_data["radeon7"]
+
 csv_file = "../20210309_0435_Ryzen3900X_OMP24.csv"
 plot_prefix = "3900X_"
 current_peak = peak_data["3900X"]
 
+csv_file = "../20210309_0435_Ryzen3900X_OMP24.csv"
+plot_prefix = "3900X_"
+current_peak = peak_data["3900X"]
+"""
 
 ### dictionary to match purpose to CSV header
 h_dict = {
