@@ -40,11 +40,11 @@ __global__ void benchmark_kernel(const T input, T *__restrict__ data) {
     static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
     static_assert(compute_iters >= 0,
                   "compute_iters must be positive or zero!");
-    /*
-    const std::int32_t idx =
+    //*
+    const std::int64_t idx =
         blockIdx.x * block_size * inner_work_iters + threadIdx.x;
-    const std::int32_t inner_stride = block_size;
-    const std::int32_t outer_stride = gridDim.x * block_size * inner_work_iters;
+    const std::int64_t inner_stride = block_size;
+    const std::int64_t outer_stride = gridDim.x * block_size * inner_work_iters;
     /*/
     const std::int64_t idx = blockIdx.x * block_size + threadIdx.x;
     const std::int64_t inner_stride = gridDim.x * block_size;
@@ -106,15 +106,16 @@ __global__ void benchmark_accessor_kernel(const Input input, Accessor acc) {
     static_assert(compute_iters >= 0,
                   "compute_iters must be positive or zero!");
     static_assert(Accessor::dimensionality == 3, "Accessor must be 3D!");
-    /*
-    const std::int32_t idx =
-        blockIdx.x * block_size * inner_work_iters + threadIdx.x;
-    const std::int32_t outer_stride = gridDim.x * block_size * inner_work_iters;
-    /*/
-    const std::int64_t idx = blockIdx.x * block_size + threadIdx.x;
 
     using value_type = typename Accessor::accessor::arithmetic_type;
     static_assert(std::is_same<value_type, Input>::value, "Types must match!");
+    //*
+    const std::int64_t idx =
+        blockIdx.x * block_size * inner_work_iters + threadIdx.x;
+    // const std::int64_t outer_stride =
+    //  gridDim.x * block_size * inner_work_iters;
+    /*/
+    const std::int64_t idx = blockIdx.x * block_size + threadIdx.x;
     //*/
     // const auto input = static_cast<value_type>(i_input);
 
