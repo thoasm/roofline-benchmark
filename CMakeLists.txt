@@ -93,16 +93,34 @@ if (ROOFLINE_HIP)
     
 
     # Modified version of: https://github.com/ROCm-Developer-Tools/HIP/blob/master/samples/2_Cookbook/12_cmake_hip_add_executable/CMakeLists.txt
-    if(NOT DEFINED HIP_PATH)
-        if(NOT DEFINED ENV{HIP_PATH})
-            set(HIP_PATH "/opt/rocm/hip" CACHE PATH "Path to which HIP has been installed")
+    if(NOT DEFINED ROCM_PATH)
+        if(NOT DEFINED ENV{ROCM_PATH})
+            set(ROCM_PATH "/opt/rocm" CACHE PATH "Path to which ROCM has been installed")
         else()
-            set(HIP_PATH $ENV{HIP_PATH} CACHE PATH "Path to which HIP has been installed")
+            set(ROCM_PATH $ENV{HIP_PATH} CACHE PATH "Path to which ROCM has been installed")
         endif()
     endif()
-    set(CMAKE_MODULE_PATH "${HIP_PATH}/cmake" ${CMAKE_MODULE_PATH})
+    if(NOT DEFINED HIP_PATH)
+        if(NOT DEFINED ENV{HIP_PATH})
+            set(HIP_PATH "${ROCM_PATH}/hip" CACHE PATH "Path to which HIP has been installed")
+        else()
+            set(HIP_PATH $ENV{ROCM_PATH} CACHE PATH "Path to which HIP has been installed")
+        endif()
+    endif()
+    if(NOT DEFINED HIP_CLANG_PATH)
+        if(NOT DEFINED ENV{HIP_CLANG_PATH})
+            set(HIP_CLANG_PATH "${ROCM_PATH}/llvm/bin" CACHE PATH "Path to which HIP compatible clang binaries have been installed")
+        else()
+            set(HIP_CLANG_PATH $ENV{HIP_CLANG_PATH} CACHE PATH "Path to which HIP compatible clang binaries have been installed")
+        endif()
+    endif()
 
-    find_package(HIP QUIET)
+    set(ROOFLINE_HIP_CLANG_COMPILER_FLAGS "" CACHE STRING "Set the required HIP CLANG compiler flags.")
+    list(APPEND CMAKE_MODULE_PATH "${HIP_PATH}/cmake")
+    #list (APPEND CMAKE_PREFIX_PATH "${ROCM_PATH}" "${HIP_PATH}")
+
+    set(GPU_TARGETS "gfx900;gfx906;gfx908" CACHE STRING "GPU targets to compile for")
+    find_package(HIP REQUIRED)
     if(HIP_FOUND)
         message(STATUS "Found HIP: " ${HIP_VERSION})
     else()
@@ -110,6 +128,12 @@ if (ROOFLINE_HIP)
     endif()
     set(target "roofline_hip")
 
+    if(GPU_TARGETS)
+        foreach(gpu_target "${GPU_TARGETS}")
+            list(APPEND ROOFLINE_HIP_CLANG_COMPILER_FLAGS --amdgpu-target=${gpu_target})
+        endforeach()
+    endif()
+    
     set(MY_SOURCE_FILES "hip/main.hip.cpp")
     set(MY_TARGET_NAME "${target}")
     set(MY_HIPCC_OPTIONS
@@ -120,10 +144,19 @@ if (ROOFLINE_HIP)
     set(MY_NVCC_OPTIONS "--expt-relaxed-constexpr")
 
     set_source_files_properties(${MY_SOURCE_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
+    #For older HIP versions (< 3.5)
+    #hip_add_executable(${MY_TARGET_NAME} ${MY_SOURCE_FILES}
+    #    HIPCC_OPTIONS ${MY_HIPCC_OPTIONS}
+    #    HCC_OPTIONS ${MY_HCC_OPTIONS}
+    #    NVCC_OPTIONS ${MY_NVCC_OPTIONS})
     hip_add_executable(${MY_TARGET_NAME} ${MY_SOURCE_FILES}
         HIPCC_OPTIONS ${MY_HIPCC_OPTIONS}
         HCC_OPTIONS ${MY_HCC_OPTIONS}
+        CLANG_OPTIONS ${ROOFLINE_HIP_CLANG_COMPILER_FLAGS}
         NVCC_OPTIONS ${MY_NVCC_OPTIONS})
+    #set_target_properties(hip::device PROPERTIES INTERFACE_COMPILE_OPTIONS "")
+    #set_target_properties(hip::device PROPERTIES INTERFACE_LINK_LIBRARIES "hip::host")
+    #target_link_libraries("${target}" hip::device)
     
     target_compile_definitions("${target}" PRIVATE ROOFLINE_HIP_CODE)
     roofline_apply_default_target_settings("${target}")
