@@ -51,7 +51,6 @@ csv_file = "../20210311_1730_V100_summit.csv"
 plot_prefix = "v100_"
 current_peak = peak_data["v100"]
 
-"""
 csv_file = "../20201125_A100_roofline_d3.csv"
 plot_prefix = "a100_"
 current_peak = peak_data["a100"]
@@ -76,10 +75,11 @@ csv_file = "../20210310_0723_Ryzen3900X_OMP24_rm-c2.csv"
 plot_prefix = "3900X_"
 current_peak = peak_data["3900X"]
 
-csv_file = "../20210310_1000_bwuni_1s_intel.csv"
+csv_file = "../20210312_0400_bwuni_xeon6230Gold_2s.csv"
 plot_prefix = "bwuni_"
 current_peak = peak_data["bwuni"]
 
+"""
 csv_file = "../20210310_1000_fhlr2_1s_intel.csv"
 plot_prefix = "fhlr2_"
 current_peak = peak_data["fhlr2"]
@@ -264,8 +264,9 @@ if __name__ == "__main__":
 
     fig, ax = create_fig_ax()
     plot_for_all(ax, plot_data, "OP_pb", "BW")
-    ax.axhline(current_peak["bw"], linestyle='--', marker='', linewidth=LineWidth,
-            color=myblack, label="Peak bandwidth")
+    if "bw" in current_peak and current_peak["bw"] > 0:
+        ax.axhline(current_peak["bw"], linestyle='--', marker='', linewidth=LineWidth,
+                color=myblack, label="Peak bandwidth")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
     ax.set_ylabel("Bandwidth [GB / s]")
@@ -276,8 +277,9 @@ if __name__ == "__main__":
 
     fig, ax = create_fig_ax()
     plot_for_all(ax, plot_data, "OP_pv", "BW")
-    ax.axhline(current_peak["bw"], linestyle='--', marker='', linewidth=LineWidth,
-            color=myblack, label="Peak bandwidth")
+    if "bw" in current_peak and current_peak["bw"] > 0:
+        ax.axhline(current_peak["bw"], linestyle='--', marker='', linewidth=LineWidth,
+                color=myblack, label="Peak bandwidth")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
     ax.set_ylabel("Bandwidth [GB / s]")
@@ -288,10 +290,12 @@ if __name__ == "__main__":
     fig, ax = create_fig_ax()
     plot_for_all(ax, plot_data, "OP_pb", "GOPS")
 
-    ax.axhline(current_peak["fp64"], linestyle='--', marker='', linewidth=LineWidth,
-            color=myblack, label="Peak fp64 performance")
-    ax.axhline(current_peak["fp32"], linestyle='--', marker='', linewidth=LineWidth,
-            color=mybrown, label="Peak fp32 performance")
+    if "fp64" in current_peak and current_peak["fp64"] > 0:
+        ax.axhline(current_peak["fp64"], linestyle='--', marker='', linewidth=LineWidth,
+                color=myblack, label="Peak fp64 performance")
+    if "fp32" in current_peak and current_peak["fp32"] > 0:
+        ax.axhline(current_peak["fp32"], linestyle='--', marker='', linewidth=LineWidth,
+                color=mybrown, label="Peak fp32 performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
     ax.set_ylabel("Compute Performance [GFLOP / s]")
@@ -303,10 +307,12 @@ if __name__ == "__main__":
     fig, ax = create_fig_ax()
     plot_for_all(ax, plot_data, "OP_pv", "GOPS")
 
-    ax.axhline(current_peak["fp64"], linestyle='--', marker='', linewidth=LineWidth,
-            color=myblack, label="Peak fp64 performance")
-    ax.axhline(current_peak["fp32"], linestyle='--', marker='', linewidth=LineWidth,
-            color=mybrown, label="Peak fp32 performance")
+    if "fp64" in current_peak and current_peak["fp64"] > 0:
+        ax.axhline(current_peak["fp64"], linestyle='--', marker='', linewidth=LineWidth,
+                color=myblack, label="Peak fp64 performance")
+    if "fp32" in current_peak and current_peak["fp32"] > 0:
+        ax.axhline(current_peak["fp32"], linestyle='--', marker='', linewidth=LineWidth,
+                color=mybrown, label="Peak fp32 performance")
 
     ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
     ax.set_ylabel("Compute Performance [GFLOP / s]")
