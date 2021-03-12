@@ -67,22 +67,22 @@ void run_benchmark_variations_compute(val_list<IT>, Args... args) {}
 template <typename T, typename IT, IT outer, IT inner, IT compute_k,
           IT... rem_compute>
 void run_benchmark_variations_compute(val_list<IT, compute_k, rem_compute...>,
-                                      std::size_t num_elems,
-                                      std::int32_t r_val) {
+                                      std::size_t num_elems, std::int32_t r_val,
+                                      void *data_ptr) {
     using value_type = typename T::type;
     auto prec = T::p;
     {
-        memory<value_type> data(num_elems);
+        // memory<value_type> data(num_elems);
         // Note: Memory is not initialized in order to get put to the correct
         //       core. However, it is possible that optimizations might require
         //       proper initialization.
         auto info = run_benchmark<value_type, outer, inner, compute_k>(
-            num_elems, static_cast<value_type>(r_val), data.get(), prec);
+            num_elems, static_cast<value_type>(r_val), data_ptr, prec);
         print_info(info);
     }
     // recursion
     run_benchmark_variations_compute<T, IT, outer, inner>(
-        val_list<IT, rem_compute...>{}, num_elems, r_val);
+        val_list<IT, rem_compute...>{}, num_elems, r_val, data_ptr);
 }
 
 // For inner resolution
@@ -181,10 +181,13 @@ int main() {
               << (USE_ARRAY ? "used" : "NOT used") << "; " << '\n';
     */
 
+    // MUST be the largest type of all `type_list` types
+    memory<double> data(num_elems);
+    data.memset(rand_val);
     {
         // MUST be the largest type of all `type_list` types
-        memory<double> data(num_elems);
-        data.memset(rand_val);
+        // memory<double> data(num_elems);
+        // data.memset(rand_val);
 
         // Warmup
         run_benchmark<double, 1, 2, 1>(num_elems, static_cast<double>(rand_val),
@@ -194,5 +197,5 @@ int main() {
     print_header();
     synchronize();
     run_benchmark_variations(type_list, outer_list, inner_list, compute_list,
-                             num_elems, rand_val);
+                             num_elems, rand_val, data.get());
 }

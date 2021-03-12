@@ -72,8 +72,10 @@ class time_series {
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
+benchmark_info run_benchmark(std::size_t num_elems, T input,
+                             void *void_data_ptr,
                              Precision prec = Precision::Pointer) {
+    auto data_ptr = reinterpret_cast<T *>(void_data_ptr);
     constexpr int average_iters{5};
     benchmark_info info;
     // Precision prec = Precision::Pointer;
