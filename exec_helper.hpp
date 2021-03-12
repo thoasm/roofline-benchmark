@@ -18,10 +18,15 @@ struct memory {
    public:
     memory(std::size_t num_elems);
     ~memory();
+    void re_allocate();
+
+    template <typename T>
     T *get();
     std::size_t get_num_elems() const;
     std::size_t get_byte_size() const;
     void memset(std::int8_t val);
+
+    template <typename T>
     std::vector<T> get_vector() const;
 };
 

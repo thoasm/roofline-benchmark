@@ -62,72 +62,70 @@ struct v_type {
 
 // For compute resolution
 template <typename T, typename IT, IT outer, IT inner, typename... Args>
-void run_benchmark_variations_compute(val_list<IT>, Args... args) {}
+void run_benchmark_variations_compute(val_list<IT>, Args &&... args) {}
 
 template <typename T, typename IT, IT outer, IT inner, IT compute_k,
           IT... rem_compute>
 void run_benchmark_variations_compute(val_list<IT, compute_k, rem_compute...>,
                                       std::size_t num_elems, std::int32_t r_val,
-                                      void *data_ptr) {
+                                      memory &data) {
     using value_type = typename T::type;
     auto prec = T::p;
-    {
-        // memory<value_type> data(num_elems);
-        // Note: Memory is not initialized in order to get put to the correct
-        //       core. However, it is possible that optimizations might require
-        //       proper initialization.
-        auto info = run_benchmark<value_type, outer, inner, compute_k>(
-            num_elems, static_cast<value_type>(r_val), data_ptr, prec);
-        print_info(info);
-    }
+
+    auto info = run_benchmark<value_type, outer, inner, compute_k>(
+        num_elems, static_cast<value_type>(r_val), data, prec);
+    print_info(info);
+
     // recursion
     run_benchmark_variations_compute<T, IT, outer, inner>(
-        val_list<IT, rem_compute...>{}, num_elems, r_val, data_ptr);
+        val_list<IT, rem_compute...>{}, num_elems, r_val, data);
 }
 
 // For inner resolution
 template <typename T, typename IT, IT outer, typename... Args>
-void run_benchmark_variations_inner(val_list<IT>, Args... args) {}
+void run_benchmark_variations_inner(val_list<IT>, Args &&... args) {}
 
 template <typename T, typename IT, IT outer, IT inner_k, IT... rem_inner,
           typename... Args>
 void run_benchmark_variations_inner(val_list<IT, inner_k, rem_inner...>,
-                                    Args... args) {
-    run_benchmark_variations_compute<T, IT, outer, inner_k>(args...);
+                                    Args &&... args) {
+    run_benchmark_variations_compute<T, IT, outer, inner_k>(
+        std::forward<Args>(args)...);
     // recursion
     run_benchmark_variations_inner<T, IT, outer>(val_list<IT, rem_inner...>{},
-                                                 args...);
+                                                 std::forward<Args>(args)...);
 }
 
 // For outer resolution
 template <typename T, typename IT, typename... Args>
-void run_benchmark_variations_outer(val_list<IT>, Args...) {}
+void run_benchmark_variations_outer(val_list<IT>, Args &&...) {}
 
 template <typename T, typename IT, IT outer_k, IT... rem_outer,
           typename... Args>
 void run_benchmark_variations_outer(val_list<IT, outer_k, rem_outer...>,
-                                    Args... args) {
-    run_benchmark_variations_inner<T, IT, outer_k>(args...);
+                                    Args &&... args) {
+    run_benchmark_variations_inner<T, IT, outer_k>(std::forward<Args>(args)...);
     // recursion
-    run_benchmark_variations_outer<T>(val_list<IT, rem_outer...>{}, args...);
+    run_benchmark_variations_outer<T>(val_list<IT, rem_outer...>{},
+                                      std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-void run_benchmark_variations(type_list<>, Args...) {}
+void run_benchmark_variations(type_list<>, Args &&...) {}
 
 template <typename T, typename... RemTypes, typename... Args>
-void run_benchmark_variations(type_list<T, RemTypes...>, Args... args) {
-    run_benchmark_variations_outer<T>(args...);
+void run_benchmark_variations(type_list<T, RemTypes...>, Args &&... args) {
+    run_benchmark_variations_outer<T>(std::forward<Args>(args)...);
     // recursion
-    run_benchmark_variations(type_list<RemTypes...>{}, args...);
+    run_benchmark_variations(type_list<RemTypes...>{},
+                             std::forward<Args>(args)...);
 }
 
 int main() {
     using i_type = std::int32_t;
-    // constexpr std::size_t num_elems = 256 * 1024 * 1024;
-    constexpr std::size_t num_elems = 32 * 1024 * 1024;
+    constexpr std::size_t num_elems = 256 * 1024 * 1024;
 
-    /*
+    //*
     // HIP compile time (Debug): 2:05:00 (125 min)
     // HIP compile time (Release): 00:01:21 (1.3 min)
     constexpr type_list<v_type<double, Precision::Pointer>,
@@ -156,7 +154,7 @@ int main() {
     constexpr val_list<i_type, 8> inner_list;
     constexpr val_list<i_type, 0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512>
         compute_list;
-    // */
+    //
     // This is a very small list for debugging purposes
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
@@ -182,20 +180,14 @@ int main() {
     */
 
     // MUST be the largest type of all `type_list` types
-    memory<double> data(num_elems);
-    data.memset(rand_val);
-    {
-        // MUST be the largest type of all `type_list` types
-        // memory<double> data(num_elems);
-        // data.memset(rand_val);
+    memory data(num_elems);
 
-        // Warmup
-        run_benchmark<double, 1, 2, 1>(num_elems, static_cast<double>(rand_val),
-                                       data.get());
-    }
+    // Warmup
+    run_benchmark<double, 1, 2, 1>(num_elems, static_cast<double>(rand_val),
+                                   data);
 
     print_header();
     synchronize();
     run_benchmark_variations(type_list, outer_list, inner_list, compute_list,
-                             num_elems, rand_val, data.get());
+                             num_elems, rand_val, data);
 }

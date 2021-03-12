@@ -5,6 +5,7 @@
 #include <cinttypes>
 #include <cstddef>
 #include <cstring>
+#include <cstring>  // for std::memcpy
 #include <vector>
 
 void synchronize() {}
@@ -38,17 +39,31 @@ class timer {
     time_point ch_end_;
 };
 
-template <typename T>
 struct memory {
+   private:
+    using big_type = double;
+
    public:
+    static constexpr std::size_t max_elem_size{sizeof(big_type)};
+
     memory(std::size_t num_elems)
-        : data_(num_elems),
+        : data_(new big_type[num_elems]),
           num_elems_(num_elems),
-          size_(num_elems_ * sizeof(T)) {}
+          size_(num_elems_ * max_elem_size) {}
 
-    ~memory() = default;
+    ~memory() { delete[] data_; }
 
-    T *get() { return data_.data(); }
+    void re_allocate() {
+        delete[] data_;
+        new big_type[num_elems_];
+    }
+
+    template <typename T>
+    T *get() {
+        static_assert(sizeof(T) <= max_elem_size,
+                      "The type you chose is too big!");
+        return reinterpret_cast<T *>(data_);
+    }
 
     std::size_t get_num_elems() const { return num_elems_; }
 
@@ -56,7 +71,7 @@ struct memory {
 
     void memset(std::int8_t val) {
         constexpr std::size_t chunk_size{4096};
-        auto ptr = reinterpret_cast<std::int8_t *>(data_.data());
+        auto ptr = reinterpret_cast<std::int8_t *>(data_);
         //#pragma parallel for schedule(static, 1)
         for (std::size_t i = 0; i < size_; i += chunk_size) {
             std::memset(ptr + i, val, chunk_size);
@@ -64,10 +79,15 @@ struct memory {
     }
 
     // Note: copies the vector here to have the same principle as the others
-    std::vector<T> get_vector() const { return data_; }
+    template <typename T>
+    std::vector<T> get_vector() const {
+        std::vector<T> vec(num_elems_);
+        std::memcpy(vec.data(), data_, num_elems_ * sizeof(T));
+        return vec;
+    }
 
    private:
-    std::vector<T> data_;
+    big_type *data_;
     std::size_t num_elems_;
     std::size_t size_;
 };

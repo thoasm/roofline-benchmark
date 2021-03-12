@@ -1,12 +1,11 @@
 #ifndef EXEC_CUDA_CUH_
 #define EXEC_CUDA_CUH_
 
-#include <vector>
 #include <cinttypes>
 #include <cstddef>
 #include <iostream>
 #include <stdexcept>
-
+#include <vector>
 
 #define CUDA_CALL(call)                                                  \
     do {                                                                 \
@@ -19,10 +18,7 @@
         }                                                                \
     } while (false)
 
-
-void synchronize() {
-    CUDA_CALL(cudaDeviceSynchronize());
-}
+void synchronize() { CUDA_CALL(cudaDeviceSynchronize()); }
 
 struct cuda_event {
    public:
@@ -42,11 +38,8 @@ struct cuda_event {
 };
 
 class timer {
-
    public:
-    void start() {
-        CUDA_CALL(cudaEventRecord(start_.get(), 0));
-    }
+    void start() { CUDA_CALL(cudaEventRecord(start_.get(), 0)); }
 
     void stop() {
         CUDA_CALL(cudaEventRecord(end_.get(), 0));
@@ -70,38 +63,51 @@ class timer {
     cuda_event end_;
 };
 
-template <typename T>
 struct memory {
+   private:
+    using big_type = double;
+
    public:
+    static constexpr std::size_t max_elem_size{sizeof(big_type)};
+
     memory(std::size_t num_elems)
-        : num_elems_(num_elems), size_(num_elems_ * sizeof(T)) {
+        : num_elems_{num_elems}, size_(num_elems_ * max_elem_size) {
         cudaSetDevice(0);
         CUDA_CALL(cudaMalloc(&data_, size_));
     }
 
     ~memory() { cudaFree(data_); }
 
-    T *get() { return data_; }
+    void re_allocate() {
+        CUDA_CALL(cudaFree(data_));
+        CUDA_CALL(cudaMalloc(&data_, size_));
+    }
+
+    template <typename T>
+    T *get() {
+        static_assert(sizeof(T) <= max_elem_size,
+                      "The type you chose is too big!");
+        return reinterpret_cast<T *>(data_);
+    }
 
     std::size_t get_num_elems() const { return num_elems_; }
 
     std::size_t get_byte_size() const { return size_; }
 
-    void memset(std::int8_t val) {
-        CUDA_CALL(cudaMemset(data_, val, size_));
-    }
+    void memset(std::int8_t val) { CUDA_CALL(cudaMemset(data_, val, size_)); }
 
+    template <typename T>
     std::vector<T> get_vector() const {
         std::vector<T> vec(num_elems_);
-        CUDA_CALL(cudaMemcpy(vec.data(), data_, size_, cudaMemcpyDeviceToHost));
+        CUDA_CALL(cudaMemcpy(vec.data(), data_, num_elems_ * sizeof(T),
+                             cudaMemcpyDeviceToHost));
         return vec;
     }
 
    private:
-    T *data_;
+    void *data_;
     std::size_t num_elems_;
     std::size_t size_;
 };
 
-
-#endif // EXEC_CUDA_CUH_
+#endif  // EXEC_CUDA_CUH_

@@ -52,7 +52,7 @@ enum class Precision { Pointer, AccessorKeep, AccessorReduced };
 class time_series {
    public:
     using time_format = double;
-    time_series() { series.reserve(15); }
+    time_series() { series.reserve(30); }
 
     void add_time(time_format time) { series.push_back(time); }
 
@@ -72,11 +72,16 @@ class time_series {
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-benchmark_info run_benchmark(std::size_t num_elems, T input,
-                             void *void_data_ptr,
+benchmark_info run_benchmark(std::size_t num_elems, T input, memory &data,
                              Precision prec = Precision::Pointer) {
-    auto data_ptr = reinterpret_cast<T *>(void_data_ptr);
-    constexpr int average_iters{5};
+    // Reallocate if data is on the CPU to ensure that the correct cores get the
+    // data
+#if ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_CPU
+    data.re_allocate();
+#endif
+
+    auto data_ptr = data.template get<T>();
+    constexpr int number_runs{15};
     benchmark_info info;
     // Precision prec = Precision::Pointer;
 
@@ -90,7 +95,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input,
         std::is_same<T, double>::value, float,
         std::conditional_t<std::is_same<T, std::int32_t>::value, std::int16_t,
                            T>>;
-    auto lower_ptr = reinterpret_cast<lower_precision *>(data_ptr);
+    auto lower_ptr = data.template get<lower_precision>();
 
     constexpr std::size_t dimensionality{3};
     auto run_set_data = [&]() {
@@ -128,7 +133,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input,
         info.set_kernel_info(run_hand_kernel());
         synchronize();
 
-        for (int i = 0; i < average_iters; ++i) {
+        for (int i = 0; i < number_runs; ++i) {
             auto res = run_hand_kernel();
             t_series.add_time(res.runtime_ms);
             synchronize();
@@ -143,7 +148,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input,
         info.set_kernel_info(run_accessor_kernel());
         synchronize();
 
-        for (int i = 0; i < average_iters; ++i) {
+        for (int i = 0; i < number_runs; ++i) {
             auto res = run_accessor_kernel();
             t_series.add_time(res.runtime_ms);
             synchronize();
@@ -159,7 +164,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input,
         info.set_kernel_info(run_lower_accessor_kernel());
         synchronize();
 
-        for (int i = 0; i < average_iters; ++i) {
+        for (int i = 0; i < number_runs; ++i) {
             auto res = run_lower_accessor_kernel();
             t_series.add_time(res.runtime_ms);
             synchronize();

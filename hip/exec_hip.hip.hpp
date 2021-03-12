@@ -64,18 +64,32 @@ class timer {
     hip_event end_;
 };
 
-template <typename T>
 struct memory {
+   private:
+    using big_type = double;
+
    public:
+    static constexpr std::size_t max_elem_size{sizeof(big_type)};
+
     memory(std::size_t num_elems)
-        : num_elems_(num_elems), size_(num_elems_ * sizeof(T)) {
+        : num_elems_(num_elems), size_(num_elems_ * max_elem_size) {
         hipSetDevice(0);
         HIP_CALL(hipMalloc(&data_, size_));
     }
 
     ~memory() { hipFree(data_); }
 
-    T *get() { return data_; }
+    void re_allocate() {
+        HIP_CALL(hipFree(data_));
+        HIP_CALL(hipMalloc(&data_, size_));
+    }
+
+    template <typename T>
+    T *get() {
+        static_assert(sizeof(T) <= max_elem_size,
+                      "The type you chose is too big!");
+        return reinterpret_cast<T *>(data_);
+    }
 
     std::size_t get_num_elems() const { return num_elems_; }
 
@@ -83,14 +97,16 @@ struct memory {
 
     void memset(std::int8_t val) { HIP_CALL(hipMemset(data_, val, size_)); }
 
+    template <typename T>
     std::vector<T> get_vector() const {
         std::vector<T> vec(num_elems_);
-        HIP_CALL(hipMemcpy(vec.data(), data_, size_, hipMemcpyDeviceToHost));
+        HIP_CALL(hipMemcpy(vec.data(), data_, num_elems_ * sizeof(T),
+                           hipMemcpyDeviceToHost));
         return vec;
     }
 
    private:
-    T *data_;
+    void *data_;
     std::size_t num_elems_;
     std::size_t size_;
 };
