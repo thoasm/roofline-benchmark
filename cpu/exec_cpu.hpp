@@ -55,7 +55,7 @@ struct memory {
 
     void re_allocate() {
         delete[] data_;
-        new big_type[num_elems_];
+        data_ = new big_type[num_elems_];
     }
 
     template <typename T>
