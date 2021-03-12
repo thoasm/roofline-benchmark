@@ -18,7 +18,7 @@
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-std::size_t run_benchmark_hand(std::size_t num_elems, T input, T *data_ptr) {
+kernel_bytes_flops_result run_benchmark_hand(std::size_t num_elems, T input, T *data_ptr) {
     const dim3 block_(default_block_size);
     const dim3 grid_(ceildiv(
         num_elems, inner_work_iters * outer_work_iters * default_block_size));
@@ -31,14 +31,14 @@ std::size_t run_benchmark_hand(std::size_t num_elems, T input, T *data_ptr) {
 
     benchmark_kernel<default_block_size, outer_work_iters, inner_work_iters,
                      compute_iters, T><<<grid_, block_>>>(input, data_ptr);
-    return calculate_computations<outer_work_iters, inner_work_iters,
+    return get_kernel_info<outer_work_iters, inner_work_iters,
                                   compute_iters, T>(num_elems);
 }
 
 template <typename ArType, typename StType, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters,
           std::size_t dimensionality>
-std::size_t run_benchmark_accessor(std::size_t num_elems, ArType input,
+kernel_bytes_flops_result run_benchmark_accessor(std::size_t num_elems, ArType input,
                             StType *data_ptr) {
     const dim3 block_(default_block_size);
     const dim3 grid_(ceildiv(
@@ -70,8 +70,8 @@ std::size_t run_benchmark_accessor(std::size_t num_elems, ArType input,
     benchmark_accessor_kernel<default_block_size, outer_work_iters,
                               inner_work_iters, compute_iters, ArType, range>
         <<<grid_, block_>>>(input, acc);
-    return calculate_computations<outer_work_iters, inner_work_iters,
-                                  compute_iters, ArType>(num_elems);
+    return get_kernel_info<outer_work_iters, inner_work_iters,
+                                  compute_iters, StType>(num_elems);
 }
 
 #endif  // BENCHMARK_CUDA_CUH_
