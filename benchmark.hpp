@@ -84,7 +84,22 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
     info.compute_iters = compute_iters;
     info.num_elems = num_elems;
 
+    using lower_precision = std::conditional_t<
+        std::is_same<T, double>::value, float,
+        std::conditional_t<std::is_same<T, std::int32_t>::value, std::int16_t,
+                           T>>;
+    auto lower_ptr = reinterpret_cast<lower_precision *>(data_ptr);
+
     constexpr std::size_t dimensionality{3};
+    auto run_set_data = [&]() {
+        return set_data<T, outer_work_iters, inner_work_iters, compute_iters>(
+            num_elems, input, data_ptr);
+    };
+    auto run_set_data_lower = [&]() {
+        return set_data<lower_precision, outer_work_iters, inner_work_iters,
+                        compute_iters>(
+            num_elems, static_cast<lower_precision>(input), lower_ptr);
+    };
 
     auto run_hand_kernel = [&]() {
         return run_benchmark_hand<T, outer_work_iters, inner_work_iters,
@@ -95,11 +110,6 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
                                       compute_iters, dimensionality>(
             num_elems, input, data_ptr);
     };
-    using lower_precision = std::conditional_t<
-        std::is_same<T, double>::value, float,
-        std::conditional_t<std::is_same<T, std::int32_t>::value, std::int16_t,
-                           T>>;
-    auto lower_ptr = reinterpret_cast<lower_precision *>(data_ptr);
     auto run_lower_accessor_kernel = [&]() {
         return run_benchmark_accessor<T, lower_precision, outer_work_iters,
                                       inner_work_iters, compute_iters,
@@ -111,6 +121,9 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
     time_series t_series;
     timer t;
     if (prec == Precision::Pointer) {
+        run_set_data();
+        synchronize();
+        // Warmup
         info.set_kernel_info(run_hand_kernel());
         synchronize();
 
@@ -120,11 +133,15 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
             t.stop();
             t_series.add_time(t.get_time());
             t.reset();
+            synchronize();
         }
     } else if (prec == Precision::AccessorKeep) {
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
                          ", " + typeid(T).name() + ", " + typeid(T).name() +
                          ">";
+        run_set_data();
+        synchronize();
+        // Warmup
         info.set_kernel_info(run_accessor_kernel());
         synchronize();
 
@@ -134,12 +151,15 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
             t.stop();
             t_series.add_time(t.get_time());
             t.reset();
+            synchronize();
         }
     } else {
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
                          ", " + typeid(T).name() + ", " +
                          typeid(lower_precision).name() + ">";
 
+        run_set_data_lower();
+        synchronize();
         // Warmup
         info.set_kernel_info(run_lower_accessor_kernel());
         synchronize();
@@ -150,6 +170,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
             t.stop();
             t_series.add_time(t.get_time());
             t.reset();
+            synchronize();
         }
     }
     info.time_ms = t_series.get_time();

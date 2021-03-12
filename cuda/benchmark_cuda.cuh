@@ -18,6 +18,24 @@
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
+void set_data(std::size_t num_elems, T input,
+                                             T *data_ptr) {
+    const dim3 block_(default_block_size);
+    const dim3 grid_(ceildiv(
+        num_elems, inner_work_iters * outer_work_iters * default_block_size));
+    if (grid_.y != 1 || grid_.z != 1) {
+        std::cerr << "Grid is expected to only have x-dimension!\n";
+    }
+    if (block_.y != 1 || block_.z != 1) {
+        std::cerr << "Block is expected to only have x-dimension!\n";
+    }
+
+    set_data_kernel<default_block_size, outer_work_iters, inner_work_iters,
+                     compute_iters, T><<<grid_, block_>>>(input, data_ptr);
+}
+
+template <typename T, std::int32_t outer_work_iters,
+          std::int32_t inner_work_iters, std::int32_t compute_iters>
 kernel_bytes_flops_result run_benchmark_hand(std::size_t num_elems, T input,
                                              T *data_ptr) {
     const dim3 block_(default_block_size);

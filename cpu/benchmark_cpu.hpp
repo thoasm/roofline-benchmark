@@ -34,6 +34,23 @@ constexpr std::int32_t num_parallel_computations{4};
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
+void set_data(const std::size_t num_elems, const T input, T *data) {
+    const std::size_t parallel_iters =
+        ceildiv(num_elems, inner_work_iters * outer_work_iters);
+    const std::int64_t outer_stride = inner_work_iters;
+    const std::int64_t parallel_stride = outer_stride * outer_work_iters;
+#pragma omp parallel for PARALLEL_FOR_SCHEDULE
+    for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
+        for (std::int32_t o = 0; o < outer_work_iters; ++o) {
+            for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+                data[pi * parallel_stride + o * outer_stride + i] = input;
+            }
+        }
+    }
+}
+
+template <typename T, std::int32_t outer_work_iters,
+          std::int32_t inner_work_iters, std::int32_t compute_iters>
 kernel_bytes_flops_result run_benchmark_hand(const std::size_t num_elems,
                                              const T input, T *data) {
     const std::size_t parallel_iters =

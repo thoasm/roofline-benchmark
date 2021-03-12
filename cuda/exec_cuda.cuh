@@ -75,6 +75,7 @@ struct memory {
    public:
     memory(std::size_t num_elems)
         : num_elems_(num_elems), size_(num_elems_ * sizeof(T)) {
+        cudaSetDevice(0);
         CUDA_CALL(cudaMalloc(&data_, size_));
     }
 

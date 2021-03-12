@@ -69,6 +69,7 @@ struct memory {
    public:
     memory(std::size_t num_elems)
         : num_elems_(num_elems), size_(num_elems_ * sizeof(T)) {
+        hipSetDevice(0);
         HIP_CALL(hipMalloc(&data_, size_));
     }
 
