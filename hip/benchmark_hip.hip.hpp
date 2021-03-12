@@ -39,8 +39,8 @@ void set_data(std::size_t num_elems, T input, T *data_ptr) {
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-kernel_bytes_flops_result run_benchmark_hand(std::size_t num_elems, T input,
-                                             T *data_ptr) {
+kernel_runtime_info run_benchmark_hand(std::size_t num_elems, T input,
+                                       T *data_ptr) {
     const dim3 block_(default_block_size);
     const dim3 grid_(ceildiv(
         num_elems, inner_work_iters * outer_work_iters * default_block_size));
@@ -51,20 +51,24 @@ kernel_bytes_flops_result run_benchmark_hand(std::size_t num_elems, T input,
         std::cerr << "Block is expected to only have x-dimension!\n";
     }
 
+    timer t;
+    t.start();
     hipLaunchKernelGGL(
         HIP_KERNEL_NAME(benchmark_kernel<default_block_size, outer_work_iters,
                                          inner_work_iters, compute_iters, T>),
         grid_, block_, 0, 0, input, data_ptr);
-    return get_kernel_info<outer_work_iters, inner_work_iters, compute_iters,
-                           T>(num_elems);
+    t.stop();
+    auto kernel_info =
+        get_kernel_info<outer_work_iters, inner_work_iters, compute_iters, T>(
+            num_elems);
+    return {kernel_info.bytes, kernel_info.comps, t.get_time()};
 }
 
 template <typename ArType, typename StType, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters,
           std::size_t dimensionality>
-kernel_bytes_flops_result run_benchmark_accessor(std::size_t num_elems,
-                                                 ArType input,
-                                                 StType *data_ptr) {
+kernel_runtime_info run_benchmark_accessor(std::size_t num_elems, ArType input,
+                                           StType *data_ptr) {
     const dim3 block_(default_block_size);
     const dim3 grid_(ceildiv(
         num_elems, inner_work_iters * outer_work_iters * default_block_size));
@@ -94,15 +98,19 @@ kernel_bytes_flops_result run_benchmark_accessor(std::size_t num_elems,
         gko::acc::reduced_row_major<dimensionality, ArType, StType>;
     using range = gko::acc::range<accessor>;
     auto acc = range(size, data_ptr, stride);
-    // Warmup
+
+    timer t;
+    t.start();
     hipLaunchKernelGGL(
         HIP_KERNEL_NAME(
             benchmark_accessor_kernel<default_block_size, outer_work_iters,
                                       inner_work_iters, compute_iters, ArType,
                                       range>),
         grid_, block_, 0, 0, input, acc);
-    return get_kernel_info<outer_work_iters, inner_work_iters, compute_iters,
-                           StType>(num_elems);
+    t.stop();
+    auto kernel_info = get_kernel_info<outer_work_iters, inner_work_iters,
+                                       compute_iters, StType>(num_elems);
+    return {kernel_info.bytes, kernel_info.comps, t.get_time()};
 }
 
 #endif  // BENCHMARK_CUDA_CUH_

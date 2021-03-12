@@ -119,7 +119,6 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
 
     // auto i_input = static_cast<std::int32_t>(input);
     time_series t_series;
-    timer t;
     if (prec == Precision::Pointer) {
         run_set_data();
         synchronize();
@@ -128,11 +127,8 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
         synchronize();
 
         for (int i = 0; i < average_iters; ++i) {
-            t.start();
-            run_hand_kernel();
-            t.stop();
-            t_series.add_time(t.get_time());
-            t.reset();
+            auto res = run_hand_kernel();
+            t_series.add_time(res.runtime_ms);
             synchronize();
         }
     } else if (prec == Precision::AccessorKeep) {
@@ -146,11 +142,8 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
         synchronize();
 
         for (int i = 0; i < average_iters; ++i) {
-            t.start();
-            run_accessor_kernel();
-            t.stop();
-            t_series.add_time(t.get_time());
-            t.reset();
+            auto res = run_accessor_kernel();
+            t_series.add_time(res.runtime_ms);
             synchronize();
         }
     } else {
@@ -165,11 +158,8 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, T *data_ptr,
         synchronize();
 
         for (int i = 0; i < average_iters; ++i) {
-            t.start();
-            run_lower_accessor_kernel();
-            t.stop();
-            t_series.add_time(t.get_time());
-            t.reset();
+            auto res = run_lower_accessor_kernel();
+            t_series.add_time(res.runtime_ms);
             synchronize();
         }
     }

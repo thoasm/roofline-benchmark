@@ -51,13 +51,15 @@ void set_data(const std::size_t num_elems, const T input, T *data) {
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-kernel_bytes_flops_result run_benchmark_hand(const std::size_t num_elems,
-                                             const T input, T *data) {
+kernel_runtime_info run_benchmark_hand(const std::size_t num_elems,
+                                       const T input, T *data) {
     const std::size_t parallel_iters =
         ceildiv(num_elems, inner_work_iters * outer_work_iters);
     const std::int64_t outer_stride = inner_work_iters;
     const std::int64_t parallel_stride = outer_stride * outer_work_iters;
+    timer t;
 #if SINGLE_COMPUTATION
+    t.start();
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
@@ -99,13 +101,16 @@ kernel_bytes_flops_result run_benchmark_hand(const std::size_t num_elems,
             */
         }
     }
+    t.stop();
     return {2 * num_elems * sizeof(T),
             num_elems * (num_parallel_computations *
                              static_cast<std::size_t>(compute_iters) * 2  // FMA
                          + num_parallel_computations - 1        // + nc*input
                          + (num_parallel_computations - 1) * 2  // FMA reduce
-                         )};
+                         ),
+            t.get_time()};
 #else
+    t.start();
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
@@ -133,21 +138,23 @@ kernel_bytes_flops_result run_benchmark_hand(const std::size_t num_elems,
             }
         }
     }
+    t.stop();
     return {1 * num_elems * sizeof(T),
             num_elems * (num_parallel_computations *
                              static_cast<std::size_t>(compute_iters) * 2  // FMA
                          + num_parallel_computations - 1        // + nc*input
                          + (num_parallel_computations - 1) * 2  // FMA reduce
-                         )};
+                         ),
+            t.get_time()};
 #endif
 }
 
 template <typename ArType, typename StType, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters,
           std::size_t dimensionality>
-kernel_bytes_flops_result run_benchmark_accessor(const std::size_t num_elems,
-                                                 const ArType input,
-                                                 StType *data_ptr) {
+kernel_runtime_info run_benchmark_accessor(const std::size_t num_elems,
+                                           const ArType input,
+                                           StType *data_ptr) {
     const std::size_t parallel_iters =
         ceildiv(num_elems, inner_work_iters * outer_work_iters);
 
@@ -164,8 +171,10 @@ kernel_bytes_flops_result run_benchmark_accessor(const std::size_t num_elems,
         gko::acc::reduced_row_major<dimensionality, ArType, StType>;
     using range = gko::acc::range<accessor>;
     auto acc = range(size, data_ptr);
+    timer t;
 
 #if SINGLE_COMPUTATION
+    t.start();
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
@@ -190,13 +199,16 @@ kernel_bytes_flops_result run_benchmark_accessor(const std::size_t num_elems,
             }
         }
     }
+    t.stop();
     return {2 * num_elems * sizeof(StType),
             num_elems * (num_parallel_computations *
                              static_cast<std::size_t>(compute_iters) * 2  // FMA
                          + num_parallel_computations - 1        // + nc*input
                          + (num_parallel_computations - 1) * 2  // FMA reduce
-                         )};
+                         ),
+            t.get_time()};
 #else
+    t.start();
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
@@ -224,12 +236,14 @@ kernel_bytes_flops_result run_benchmark_accessor(const std::size_t num_elems,
             }
         }
     }
+    t.stop();
     return {1 * num_elems * sizeof(StType),
             num_elems * (num_parallel_computations *
                              static_cast<std::size_t>(compute_iters) * 2  // FMA
                          + num_parallel_computations - 1        // + nc*input
                          + (num_parallel_computations - 1) * 2  // FMA reduce
-                         )};
+                         ),
+            t.get_time()};
 #endif
 }
 

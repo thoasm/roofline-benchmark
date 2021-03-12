@@ -4,9 +4,12 @@
 #include <cinttypes>
 #include <cstddef>  // for std::size_t
 #include <string>
-#include <utility>
 
-using kernel_bytes_flops_result = std::pair<std::size_t, std::size_t>;
+struct kernel_runtime_info {
+    std::size_t bytes;
+    std::size_t comps;
+    double runtime_ms;
+};
 
 struct benchmark_info {
     // Template params
@@ -30,9 +33,9 @@ struct benchmark_info {
     double get_bw_gbs() const {
         return static_cast<double>(memory_moved_bytes) / (time_ms * 1e6);
     }
-    void set_kernel_info(kernel_bytes_flops_result res) {
-        memory_moved_bytes = res.first;
-        computations = res.second;
+    void set_kernel_info(kernel_runtime_info res) {
+        memory_moved_bytes = res.bytes;
+        computations = res.comps;
     }
 };
 
