@@ -18,9 +18,9 @@
 //
 
 #define SINGLE_COMPUTATION true
-//#define SINGLE_COMPUTATION false
-//#define PARALLEL_FOR_SCHEDULE schedule(static, 128)
-#define PARALLEL_FOR_SCHEDULE
+#define SINGLE_COMPUTATION false
+#define PARALLEL_FOR_SCHEDULE schedule(static, 1024)
+//#define PARALLEL_FOR_SCHEDULE
 constexpr std::int32_t num_parallel_computations{4};
 
 // fakes reading from p (when p is an address, it forces the object to have an
