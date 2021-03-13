@@ -17,18 +17,12 @@
 
 //
 
-#define SINGLE_COMPUTATION true
-#define SINGLE_COMPUTATION false
+//#define READ_WRITE_BENCHMARK true
+#define READ_WRITE_BENCHMARK false
+
 #define PARALLEL_FOR_SCHEDULE schedule(static, 1024)
 //#define PARALLEL_FOR_SCHEDULE
 constexpr std::int32_t num_parallel_computations{4};
-
-// fakes reading from p (when p is an address, it forces the object to have an
-// address) and writing / touching all available memory
-// static void escape(void *p) { asm volatile("" : : "g"(p) : "memory"); }
-
-// fakes reading and writing all available memory
-// static void clobber() { asm volatile("" : : : "memory"); }
 
 //
 
@@ -58,7 +52,7 @@ kernel_runtime_info run_benchmark_hand(const std::size_t num_elems,
     const std::int64_t outer_stride = inner_work_iters;
     const std::int64_t parallel_stride = outer_stride * outer_work_iters;
     timer t;
-#if SINGLE_COMPUTATION
+#if READ_WRITE_BENCHMARK
     t.start();
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
@@ -173,7 +167,7 @@ kernel_runtime_info run_benchmark_accessor(const std::size_t num_elems,
     auto acc = range(size, data_ptr);
     timer t;
 
-#if SINGLE_COMPUTATION
+#if READ_WRITE_BENCHMARK
     t.start();
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE
     for (std::size_t pi = 0; pi < parallel_iters; ++pi) {

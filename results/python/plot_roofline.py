@@ -7,6 +7,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 # Peak data: flops in GFLOPS; BW in GB/s
 peak_data = {}
+
+plot_folder = "./plots/"
 filt_lambda = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 8
 
 peak_data["radeon7"] = {
@@ -40,10 +42,13 @@ peak_data["3900X"] = {
         "bw": 48.0
         }
 peak_data["bwuni"] = {
+# 2x Intel Xeon Gold 6230 (full specs: https://wiki.bwhpc.de/e/BwUniCluster_2.0_Hardware_and_Architecture)
+# Each Processor:
+#   maybe 6 * 20 = 120 GB/s Bandwidth
         "fp64": 0.0,
         "fp32": 0.0,
         "fp16": 0.0,
-        "bw": 0.0
+        "bw": 2 * 6 * 23.47
         }
 peak_data["fhlr2"] = {
         "fp64": 0.0,
@@ -51,8 +56,6 @@ peak_data["fhlr2"] = {
         "fp16": 0.0,
         "bw": 0.0
         }
-
-plot_folder = "./plots/"
 
 
 csv_file = "../20210311_1730_V100_summit.csv"
@@ -70,9 +73,8 @@ current_peak = peak_data["radeon7"]
 csv_file = "../20210312_2000_MI100.csv"
 plot_prefix = "mi100_"
 current_peak = peak_data["mi100"]
-filt_lambda = lambda x : int(x[i_dict["oiters"]]) == 1 and int(x[i_dict["iiters"]]) == 8
+#filt_lambda = lambda x : int(x[i_dict["oiters"]]) == 1 and int(x[i_dict["iiters"]]) == 8
 
-"""
 csv_file = "../20210309_0435_Ryzen3900X_OMP24.csv"
 plot_prefix = "3900X_"
 current_peak = peak_data["3900X"]
@@ -85,9 +87,16 @@ csv_file = "../20210310_0723_Ryzen3900X_OMP24_rm-c2.csv"
 plot_prefix = "3900X_"
 current_peak = peak_data["3900X"]
 
-csv_file = "../20210312_0400_bwuni_xeon6230Gold_2s.csv"
-plot_prefix = "bwuni_"
+csv_file = "../20210312_2200_bwuni_2s80t_rw.csv"
+plot_prefix = "bwuni-rw_"
 current_peak = peak_data["bwuni"]
+filt_lambda = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 16
+
+"""
+csv_file = "../20210312_2230_bwuni_2s80t_ro.csv"
+plot_prefix = "bwuni-ro_"
+current_peak = peak_data["bwuni"]
+#filt_lambda = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 16
 
 csv_file = "../20210310_1000_fhlr2_1s_intel.csv"
 plot_prefix = "fhlr2_"
