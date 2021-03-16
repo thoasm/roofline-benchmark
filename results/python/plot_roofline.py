@@ -18,9 +18,15 @@ plot_info["radeon7"] = {
         "peak_fp32": 13440.0,
         "peak_fp16": 26880.0,
         "peak_bw": 1024.0,
-        "file": "../20210315_1003_radeon7.csv",
+        #"file": "../20210315_1003_radeon7.csv",
+        #"file": "../20210316_1701_radeon7.csv",
+        #"file": "../20210316_1711_radeon7.csv",
+        #"file": "../20210316_1712_radeon7.csv",
+        #"file": "../20210316_1721_radeon7.csv",
+        #"file": "../20210316_1712_radeon7.csv",
+        "file": "../20210316_1720_radeon7.csv", # best one so far with 18
         "prefix": "radeon7_",
-        "filter": filt_lambda_48
+        "filter": filt_lambda_18,
         }
 plot_info["mi100"] = {
         "peak_fp64": 11500.0,
@@ -29,7 +35,7 @@ plot_info["mi100"] = {
         "peak_bw": 1200.0,
         "file": "../20210312_2000_MI100.csv",
         "prefix": "mi100_",
-        "filter": filt_lambda_18
+        "filter": filt_lambda_18,
         }
 plot_info["a100"] = {
         "peak_fp64": 9746.0,
@@ -38,7 +44,7 @@ plot_info["a100"] = {
         "peak_bw": 1555.0,
         "file": "../20201125_A100_roofline_d3.csv",
         "prefix": "a100_",
-        "filter": filt_lambda_48
+        "filter": filt_lambda_48,
         }
 plot_info["v100"] = {
         "peak_fp64": 7800.0,
@@ -47,7 +53,7 @@ plot_info["v100"] = {
         "peak_bw": 900.0,
         "file": "../20210311_1730_V100_summit.csv",
         "prefix": "v100_",
-        "filter": filt_lambda_48
+        "filter": filt_lambda_48,
         }
 plot_info["3900X"] = {
         "peak_fp64": 792.0, # Estimated with https://github.com/Mysticial/Flops
@@ -56,7 +62,7 @@ plot_info["3900X"] = {
         "peak_bw": 51.2,
         "file": "../20210309_0435_Ryzen3900X_OMP24.csv",
         "prefix": "3900X_",
-        "filter": filt_lambda_48
+        "filter": filt_lambda_48,
         }
 plot_info["bwuni-rw"] = {
 # 2x Intel Xeon Gold 6230 (full specs: https://wiki.bwhpc.de/e/BwUniCluster_2.0_Hardware_and_Architecture)
@@ -67,7 +73,7 @@ plot_info["bwuni-rw"] = {
         "peak_bw": 2 * 6 * 23.47,
         "file": "../20210312_2200_bwuni_2s80t_rw.csv",
         "prefix": "bwuni-rw_",
-        "filter": filt_lambda_416
+        "filter": filt_lambda_416,
         }
 plot_info["bwuni-ro"] = plot_info["bwuni-rw"]
 plot_info["bwuni-ro"]["prefix"] = "bwuni-ro_"
@@ -80,7 +86,7 @@ plot_info["fhlr2"] = {
         "peak_bw": 0.0,
         "file": "../20210310_1000_fhlr2_1s_intel.csv",
         "prefix": "fhlr2_",
-        "filter": filt_lambda_48
+        "filter": filt_lambda_48,
         }
 
 
@@ -89,7 +95,8 @@ plot_list = [
         "radeon7",
         "a100",
         "v100",
-        "bwuni-rw"]
+        "bwuni-rw",
+        ]
 
 ### dictionary to match purpose to CSV header
 h_dict = {
@@ -103,8 +110,7 @@ h_dict = {
         "oiters": "Outer Its",
         "iiters": "Inner Its",
         "citers": "Comp Its",
-        "#elms": "# Elements"
-        # "OP_pb": "Operations per Byte [OP / Byte]"
+        "#elms": "# Elements",
         }
 
 def read_csv(path=None):
@@ -119,7 +125,7 @@ def read_csv(path=None):
     if path == None:
         raise Exception("No filename specified! Unable to read file.")
     with open(path, 'r') as f:
-        print("The csv file is opened")
+        print("The csv file <{}> is opened".format(path))
         csv_f = csv.reader(f, delimiter=';', skipinitialspace=True)
         header = next(csv_f)
         print("CSV header: {}".format(header))
