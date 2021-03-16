@@ -6,103 +6,90 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 
 # Peak data: flops in GFLOPS; BW in GB/s
-peak_data = {}
+plot_info = {}
 
 plot_folder = "./plots/"
-filt_lambda = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 8
+filt_lambda_48 = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 8
+filt_lambda_18 = lambda x : int(x[i_dict["oiters"]]) == 1 and int(x[i_dict["iiters"]]) == 8
+filt_lambda_416 = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 16
 
-peak_data["radeon7"] = {
-        "fp64": 3360.0,
-        "fp32": 13440.0,
-        "fp16": 26880.0,
-        "bw": 1024.0
+plot_info["radeon7"] = {
+        "peak_fp64": 3360.0,
+        "peak_fp32": 13440.0,
+        "peak_fp16": 26880.0,
+        "peak_bw": 1024.0,
+        "file": "../20210315_1003_radeon7.csv",
+        "prefix": "radeon7_",
+        "filter": filt_lambda_48
         }
-peak_data["mi100"] = {
-        "fp64": 11500.0,
-        "fp32": 23100.0,
-        "fp16": 18460.0,
-        "bw": 1200.0
+plot_info["mi100"] = {
+        "peak_fp64": 11500.0,
+        "peak_fp32": 23100.0,
+        "peak_fp16": 18460.0,
+        "peak_bw": 1200.0,
+        "file": "../20210312_2000_MI100.csv",
+        "prefix": "mi100_",
+        "filter": filt_lambda_18
         }
-peak_data["a100"] = {
-        "fp64": 9746.0,
-        "fp32": 19490.0,
-        "fp16": 77970.0,
-        "bw": 1555.0
+plot_info["a100"] = {
+        "peak_fp64": 9746.0,
+        "peak_fp32": 19490.0,
+        "peak_fp16": 77970.0,
+        "peak_bw": 1555.0,
+        "file": "../20201125_A100_roofline_d3.csv",
+        "prefix": "a100_",
+        "filter": filt_lambda_48
         }
-peak_data["v100"] = {
-        "fp64": 7800.0,
-        "fp32": 15700.0,
-        "fp16": 125000.0, # TENSOR performance, not pure FP16
-        "bw": 900.0
+plot_info["v100"] = {
+        "peak_fp64": 7800.0,
+        "peak_fp32": 15700.0,
+        "peak_fp16": 125000.0, # TENSOR performance, not pure FP16
+        "peak_bw": 900.0,
+        "file": "../20210311_1730_V100_summit.csv",
+        "prefix": "v100_",
+        "filter": filt_lambda_48
         }
-peak_data["3900X"] = {
-        "fp64": 792.0, # Estimated with https://github.com/Mysticial/Flops
-        "fp32": 1579.0, # same as above
-        "fp16": 0.0, # No fp16 unit, therefore, 0
-        "bw": 48.0
+plot_info["3900X"] = {
+        "peak_fp64": 792.0, # Estimated with https://github.com/Mysticial/Flops
+        "peak_fp32": 1579.0, # same as above
+        "peak_fp16": 0.0, # No fp16 unit, therefore, 0
+        "peak_bw": 51.2,
+        "file": "../20210309_0435_Ryzen3900X_OMP24.csv",
+        "prefix": "3900X_",
+        "filter": filt_lambda_48
         }
-peak_data["bwuni"] = {
+plot_info["bwuni-rw"] = {
 # 2x Intel Xeon Gold 6230 (full specs: https://wiki.bwhpc.de/e/BwUniCluster_2.0_Hardware_and_Architecture)
 # Each Processor:
-#   maybe 6 * 20 = 120 GB/s Bandwidth
-        "fp64": 0.0,
-        "fp32": 0.0,
-        "fp16": 0.0,
-        "bw": 2 * 6 * 23.47
+        "peak_fp64": 0.0,
+        "peak_fp32": 0.0,
+        "peak_fp16": 0.0,
+        "peak_bw": 2 * 6 * 23.47,
+        "file": "../20210312_2200_bwuni_2s80t_rw.csv",
+        "prefix": "bwuni-rw_",
+        "filter": filt_lambda_416
         }
-peak_data["fhlr2"] = {
-        "fp64": 0.0,
-        "fp32": 0.0,
-        "fp16": 0.0,
-        "bw": 0.0
+plot_info["bwuni-ro"] = plot_info["bwuni-rw"]
+plot_info["bwuni-ro"]["prefix"] = "bwuni-ro_"
+plot_info["bwuni-ro"]["file"] = "../20210312_2230_bwuni_2s80t_ro.csv"
+
+plot_info["fhlr2"] = {
+        "peak_fp64": 0.0,
+        "peak_fp32": 0.0,
+        "peak_fp16": 0.0,
+        "peak_bw": 0.0,
+        "file": "../20210310_1000_fhlr2_1s_intel.csv",
+        "prefix": "fhlr2_",
+        "filter": filt_lambda_48
         }
 
 
-csv_file = "../20210311_1730_V100_summit.csv"
-plot_prefix = "v100_"
-current_peak = peak_data["v100"]
-
-csv_file = "../20201125_A100_roofline_d3.csv"
-plot_prefix = "a100_"
-current_peak = peak_data["a100"]
-
-csv_file = "../20210225_1555_radeon7.csv"
-plot_prefix = "radeon7_"
-current_peak = peak_data["radeon7"]
-
-csv_file = "../20210312_2000_MI100.csv"
-plot_prefix = "mi100_"
-current_peak = peak_data["mi100"]
-#filt_lambda = lambda x : int(x[i_dict["oiters"]]) == 1 and int(x[i_dict["iiters"]]) == 8
-
-csv_file = "../20210309_0435_Ryzen3900X_OMP24.csv"
-plot_prefix = "3900X_"
-current_peak = peak_data["3900X"]
-
-csv_file = "../20210309_0435_Ryzen3900X_OMP24.csv"
-plot_prefix = "3900X_"
-current_peak = peak_data["3900X"]
-
-csv_file = "../20210310_0723_Ryzen3900X_OMP24_rm-c2.csv"
-plot_prefix = "3900X_"
-current_peak = peak_data["3900X"]
-
-csv_file = "../20210312_2200_bwuni_2s80t_rw.csv"
-plot_prefix = "bwuni-rw_"
-current_peak = peak_data["bwuni"]
-filt_lambda = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 16
-
-"""
-csv_file = "../20210312_2230_bwuni_2s80t_ro.csv"
-plot_prefix = "bwuni-ro_"
-current_peak = peak_data["bwuni"]
-#filt_lambda = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 16
-
-csv_file = "../20210310_1000_fhlr2_1s_intel.csv"
-plot_prefix = "fhlr2_"
-current_peak = peak_data["fhlr2"]
-"""
-
+plot_list = [
+        "mi100",
+        "radeon7",
+        "a100",
+        "v100",
+        "bwuni-rw"]
 
 ### dictionary to match purpose to CSV header
 h_dict = {
@@ -210,7 +197,7 @@ def create_fig_ax():
     return fig, ax
 
 
-def plot_figure(fig, file_name):
+def plot_figure(fig, file_name, plot_prefix):
     """Plots the given figure fig as various formats with a base-name of file_name.
     plot_folder will be used as the filder for the file; plot_prefix will be the
     prefix of each file."""
@@ -247,92 +234,94 @@ if __name__ == "__main__":
     if not os.path.exists(plot_folder):
         os.makedirs(plot_folder)
 
-    data_dict, i_dict = read_csv(csv_file)
+    for device in plot_list:
+        info = plot_info[device]
+        data_dict, i_dict = read_csv(info["file"])
 
-    data_dict = filter_data(data_dict, filt_lambda)
+        data_dict = filter_data(data_dict, info["filter"])
 
-    # Generate data for plotting for all available precisions
-    plot_data = {}
-    use_global_elms = False
-    # When available, use "elems"
-    if "#elms" not in i_dict:
-        # Here, it is assumed that "double" is always available, and all have the same number of elements
-        use_global_elms = True
-        glob_num_elems = int(int(data_dict["double"][0][i_dict["size"]]) / 8)
-    for key, lines in data_dict.items():
-        current_dict = {"OP_pb": [], "OP_pv": [], "GOPS": [], "BW": []}
-        for line in lines:
-            size_i = i_dict["size"]
-            bw_i = i_dict["BW"]
-            ops_i = i_dict["GOPS"]
-            comp_i = i_dict["comps"]
-            if use_global_elms:
-                num_elems = glob_num_elems
-            else:
-                num_elems = int(line[i_dict["#elms"]])
+        # Generate data for plotting for all available precisions
+        plot_data = {}
+        use_global_elms = False
+        # When available, use "elems"
+        if "#elms" not in i_dict:
+            # Here, it is assumed that "double" is always available, and all have the same number of elements
+            use_global_elms = True
+            glob_num_elems = int(int(data_dict["double"][0][i_dict["size"]]) / 8)
+        for key, lines in data_dict.items():
+            current_dict = {"OP_pb": [], "OP_pv": [], "GOPS": [], "BW": []}
+            for line in lines:
+                size_i = i_dict["size"]
+                bw_i = i_dict["BW"]
+                ops_i = i_dict["GOPS"]
+                comp_i = i_dict["comps"]
+                if use_global_elms:
+                    num_elems = glob_num_elems
+                else:
+                    num_elems = int(line[i_dict["#elms"]])
 
-            current_dict["OP_pb"].append(int(line[comp_i]) / int(line[size_i]))
-            current_dict["OP_pv"].append(int(line[comp_i]) / num_elems)
-            current_dict["GOPS"].append(float(line[ops_i]))
-            current_dict["BW"].append(float(line[bw_i]))
+                current_dict["OP_pb"].append(int(line[comp_i]) / int(line[size_i]))
+                current_dict["OP_pv"].append(int(line[comp_i]) / num_elems)
+                current_dict["GOPS"].append(float(line[ops_i]))
+                current_dict["BW"].append(float(line[bw_i]))
 
-        plot_data[key] = current_dict
-
-
-    fig, ax = create_fig_ax()
-    plot_for_all(ax, plot_data, "OP_pb", "BW")
-    if "bw" in current_peak and current_peak["bw"] > 0:
-        ax.axhline(current_peak["bw"], linestyle='--', marker='', linewidth=LineWidth,
-                color=myblack, label="Peak bandwidth")
-
-    ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
-    ax.set_ylabel("Bandwidth [GB / s]")
-    #ax.legend(loc="best")
-    ax.legend(loc="lower left")
-    plot_figure(fig, "roofline_bandwidth_pai_d3")
+            plot_data[key] = current_dict
 
 
-    fig, ax = create_fig_ax()
-    plot_for_all(ax, plot_data, "OP_pv", "BW")
-    if "bw" in current_peak and current_peak["bw"] > 0:
-        ax.axhline(current_peak["bw"], linestyle='--', marker='', linewidth=LineWidth,
-                color=myblack, label="Peak bandwidth")
+        fig, ax = create_fig_ax()
+        plot_for_all(ax, plot_data, "OP_pb", "BW")
+        if "peak_bw" in info and info["peak_bw"] > 0:
+            ax.axhline(info["peak_bw"], linestyle='--', marker='', linewidth=LineWidth,
+                    color=myblack, label="Peak bandwidth")
 
-    ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
-    ax.set_ylabel("Bandwidth [GB / s]")
-    ax.legend(loc="lower left")
-    plot_figure(fig, "roofline_bandwidth_pv_d3")
-
-
-    fig, ax = create_fig_ax()
-    plot_for_all(ax, plot_data, "OP_pb", "GOPS")
-
-    if "fp64" in current_peak and current_peak["fp64"] > 0:
-        ax.axhline(current_peak["fp64"], linestyle='--', marker='', linewidth=LineWidth,
-                color=myblack, label="Peak fp64 performance")
-    if "fp32" in current_peak and current_peak["fp32"] > 0:
-        ax.axhline(current_peak["fp32"], linestyle='--', marker='', linewidth=LineWidth,
-                color=mybrown, label="Peak fp32 performance")
-
-    ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
-    ax.set_ylabel("Compute Performance [GFLOP / s]")
-    #ax.legend(loc="best")
-    ax.legend(loc="lower right")
-    plot_figure(fig, "roofline_performance_pai_d3")
+        ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
+        ax.set_ylabel("Bandwidth [GB / s]")
+        #ax.legend(loc="best")
+        ax.legend(loc="lower left")
+        plot_figure(fig, "roofline_bandwidth_pai_d3", info["prefix"])
 
 
-    fig, ax = create_fig_ax()
-    plot_for_all(ax, plot_data, "OP_pv", "GOPS")
+        fig, ax = create_fig_ax()
+        plot_for_all(ax, plot_data, "OP_pv", "BW")
+        if "peak_bw" in info and info["peak_bw"] > 0:
+            ax.axhline(info["peak_bw"], linestyle='--', marker='', linewidth=LineWidth,
+                    color=myblack, label="Peak bandwidth")
 
-    if "fp64" in current_peak and current_peak["fp64"] > 0:
-        ax.axhline(current_peak["fp64"], linestyle='--', marker='', linewidth=LineWidth,
-                color=myblack, label="Peak fp64 performance")
-    if "fp32" in current_peak and current_peak["fp32"] > 0:
-        ax.axhline(current_peak["fp32"], linestyle='--', marker='', linewidth=LineWidth,
-                color=mybrown, label="Peak fp32 performance")
+        ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
+        ax.set_ylabel("Bandwidth [GB / s]")
+        ax.legend(loc="lower left")
+        plot_figure(fig, "roofline_bandwidth_pv_d3", info["prefix"])
 
-    ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
-    ax.set_ylabel("Compute Performance [GFLOP / s]")
-    #ax.legend(loc="best")
-    ax.legend(loc="lower right")
-    plot_figure(fig, "roofline_performance_pv_d3")
+
+        fig, ax = create_fig_ax()
+        plot_for_all(ax, plot_data, "OP_pb", "GOPS")
+
+        if "peak_fp64" in info and info["peak_fp64"] > 0:
+            ax.axhline(info["peak_fp64"], linestyle='--', marker='', linewidth=LineWidth,
+                    color=myblack, label="Peak fp64 performance")
+        if "peak_fp32" in info and info["peak_fp32"] > 0:
+            ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
+                    color=mybrown, label="Peak fp32 performance")
+
+        ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
+        ax.set_ylabel("Compute Performance [GFLOP / s]")
+        #ax.legend(loc="best")
+        ax.legend(loc="lower right")
+        plot_figure(fig, "roofline_performance_pai_d3", info["prefix"])
+
+
+        fig, ax = create_fig_ax()
+        plot_for_all(ax, plot_data, "OP_pv", "GOPS")
+
+        if "peak_fp64" in info and info["peak_fp64"] > 0:
+            ax.axhline(info["peak_fp64"], linestyle='--', marker='', linewidth=LineWidth,
+                    color=myblack, label="Peak fp64 performance")
+        if "peak_fp32" in info and info["peak_fp32"] > 0:
+            ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
+                    color=mybrown, label="Peak fp32 performance")
+
+        ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
+        ax.set_ylabel("Compute Performance [GFLOP / s]")
+        #ax.legend(loc="best")
+        ax.legend(loc="lower right")
+        plot_figure(fig, "roofline_performance_pv_d3", info["prefix"])

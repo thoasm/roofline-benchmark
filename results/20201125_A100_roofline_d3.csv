@@ -1,4 +1,4 @@
-   Precision;   [GOPs/s];  BW [GB/s];  time [ms]; computations; data [Bytes]; Outer Its; Inner Its; Comp Its
+   Precision;   [GOP/s];  BW [GB/s];  time [ms]; computations; data [Bytes]; Outer Its; Inner Its; Comp Its
       double;  141.63821; 1133.10568;    0.94761;    134217728;   1073741824;         1;         8;        0
       double;  420.73187; 1121.95165;    0.95703;    402653184;   1073741824;         1;         8;        1
       double;  706.81621; 1130.90593;    0.94945;    671088640;   1073741824;         1;         8;        2
