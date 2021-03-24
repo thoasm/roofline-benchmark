@@ -17,8 +17,8 @@
 
 //
 
-//#define READ_WRITE_BENCHMARK true
-#define READ_WRITE_BENCHMARK false
+#define READ_WRITE_BENCHMARK true
+//#define READ_WRITE_BENCHMARK false
 
 #define PARALLEL_FOR_SCHEDULE schedule(static, 1024)
 //#define PARALLEL_FOR_SCHEDULE

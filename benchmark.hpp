@@ -81,7 +81,7 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, memory &data,
 #endif
 
     auto data_ptr = data.template get<T>();
-    constexpr int number_runs{7};
+    constexpr int number_runs{20};
     benchmark_info info;
     // Precision prec = Precision::Pointer;
 
