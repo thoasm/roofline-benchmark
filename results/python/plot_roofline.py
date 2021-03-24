@@ -2,6 +2,7 @@
 import os
 import csv
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 from matplotlib.backends.backend_pdf import PdfPages
 
 
@@ -66,7 +67,6 @@ plot_info["3900X"] = {
         }
 plot_info["bwuni-rw"] = {
 # 2x Intel Xeon Gold 6230 (full specs: https://wiki.bwhpc.de/e/BwUniCluster_2.0_Hardware_and_Architecture)
-# Each Processor:
         "peak_fp64": 0.0,
         "peak_fp32": 0.0,
         "peak_fp16": 0.0,
@@ -75,9 +75,25 @@ plot_info["bwuni-rw"] = {
         "prefix": "bwuni-rw_",
         "filter": filt_lambda_416,
         }
-plot_info["bwuni-ro"] = plot_info["bwuni-rw"]
+plot_info["bwuni-ro"] = plot_info["bwuni-rw"].copy()
 plot_info["bwuni-ro"]["prefix"] = "bwuni-ro_"
 plot_info["bwuni-ro"]["file"] = "../20210312_2230_bwuni_2s80t_ro.csv"
+
+plot_info["AMD-7742-rw"] = {
+# 2x AMD EPYC 7742 (on ForHLR2)
+# Processor specs: https://www.amd.com/en/products/cpu/amd-epyc-7742
+        "peak_fp64": 0.0,
+        "peak_fp32": 0.0,
+        "peak_fp16": 0.0,
+        "peak_bw": 2 * 204.8,
+        "file": "../20210324_1130_AMD_EPYC_7742_2s256t_rw.csv",
+        "prefix": "EPYC-rw_",
+        "filter": filt_lambda_416,
+        }
+plot_info["AMD-7742-ro"] = plot_info["AMD-7742-rw"].copy()
+plot_info["AMD-7742-ro"]["prefix"] = "EPYC-ro_"
+plot_info["AMD-7742-ro"]["file"] = "../20210324_1020_AMD_EPYC_7742_2s256t_ro.csv"
+
 
 plot_info["fhlr2"] = {
         "peak_fp64": 0.0,
@@ -96,6 +112,8 @@ plot_list = [
         "a100",
         "v100",
         "bwuni-rw",
+        "AMD-7742-rw",
+        "AMD-7742-ro",
         ]
 
 ### dictionary to match purpose to CSV header
@@ -194,7 +212,9 @@ def create_fig_ax():
     Creates a tuple of figure and axis for future plots.
     The size, the visibility of the grid and the log-scale of x and y is preset
     """
-    fig, ax = plt.subplots(figsize=(10, 4))
+    fig = Figure(figsize=(10, 4)) # Properly garbage collected
+    ax = fig.add_subplot()
+    #fig, ax = plt.subplots(figsize=(10, 4)) # NOT garbage collected!
     grid_minor_color = (.9, .9, .9)
     grid_major_color = (.8, .8, .8)
     ax.grid(True, which="major", axis="both", linestyle='-', linewidth=1, color=grid_major_color)
@@ -215,7 +235,7 @@ def plot_figure(fig, file_name, plot_prefix):
     with PdfPages(file_path+".pdf") as export_pdf:
         export_pdf.savefig(fig, dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad)
     fig.savefig(file_path+".svg", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="svg")
-    fig.savefig(file_path+".png", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="png")
+    #fig.savefig(file_path+".png", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="png")
 
 
 def plot_for_all(ax, data, x_key, y_key):
