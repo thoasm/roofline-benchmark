@@ -253,6 +253,10 @@ def plot_for_all(ax, data, x_key, y_key):
 
 
 if __name__ == "__main__":
+    bw_color = myblack
+    fp32_color = mybrown
+    fp64_color = myblack
+
     # Change to the directory where the script is placed
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -298,7 +302,7 @@ if __name__ == "__main__":
         plot_for_all(ax, plot_data, "OP_pb", "BW")
         if "peak_bw" in info and info["peak_bw"] > 0:
             ax.axhline(info["peak_bw"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=myblack, label="Peak bandwidth")
+                    color=bw_color, label="Peak bandwidth")
 
         ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
         ax.set_ylabel("Bandwidth [GB / s]")
@@ -311,7 +315,7 @@ if __name__ == "__main__":
         plot_for_all(ax, plot_data, "OP_pv", "BW")
         if "peak_bw" in info and info["peak_bw"] > 0:
             ax.axhline(info["peak_bw"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=myblack, label="Peak bandwidth")
+                    color=bw_color, label="Peak bandwidth")
 
         ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
         ax.set_ylabel("Bandwidth [GB / s]")
@@ -324,10 +328,10 @@ if __name__ == "__main__":
 
         if "peak_fp64" in info and info["peak_fp64"] > 0:
             ax.axhline(info["peak_fp64"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=myblack, label="Peak fp64 performance")
+                    color=fp64_color, label="Peak fp64 performance")
         if "peak_fp32" in info and info["peak_fp32"] > 0:
             ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=mybrown, label="Peak fp32 performance")
+                    color=fp32_color, label="Peak fp32 performance")
 
         ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
         ax.set_ylabel("Compute Performance [GFLOP / s]")
@@ -341,10 +345,10 @@ if __name__ == "__main__":
 
         if "peak_fp64" in info and info["peak_fp64"] > 0:
             ax.axhline(info["peak_fp64"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=myblack, label="Peak fp64 performance")
+                    color=fp64_color, label="Peak fp64 performance")
         if "peak_fp32" in info and info["peak_fp32"] > 0:
             ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=mybrown, label="Peak fp32 performance")
+                    color=fp32_color, label="Peak fp32 performance")
 
         ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
         ax.set_ylabel("Compute Performance [GFLOP / s]")
