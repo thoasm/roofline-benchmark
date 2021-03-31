@@ -201,6 +201,11 @@ myred     = (0.6350, 0.0780, 0.1840);
 myblack   = (0.2500, 0.2500, 0.2500);
 mybrown   = (0.6500, 0.1600, 0.1600);
 
+dark_mod = 2
+mydarkred     = (0.6350 / dark_mod, 0.0780 / dark_mod, 0.1840 / dark_mod);
+mydarkgreen   = (0.4660 / dark_mod, 0.6740 / dark_mod, 0.1880 / dark_mod);
+mydarkblue    = (0, 0.4470 / dark_mod, 0.7410 / dark_mod);
+
 ### Other globals
 LineWidth = 1
 MarkerSize = 8
@@ -243,19 +248,26 @@ def plot_for_all(ax, data, x_key, y_key):
     plots given x and y keys for all precisions of interest on the axis ax.
     """
     markers = ('X', 'P', 'x', '+')
-    colors = (mygreen, myblue, myorange, myyellow)
     precs = ("double", "float",  "Ac<3, d, d>", "Ac<3, d, f>")
+    colors = (mygreen, myblue, myorange, myyellow)
     labels = ("fp64", "fp32",  "Accessor<fp64, fp64>", "Accessor<fp64, fp32>")
     for i in range(len(precs)):
         ax.plot(data[precs[i]][x_key], data[precs[i]][y_key], label=labels[i],
                 marker=markers[i], color=colors[i], linewidth=LineWidth,
                 markersize=MarkerSize)
+    """ To get / set x- and y-limits:
+    ax.set_xlim(0.7070722721781199, 1449.6396483523677)
+    ax.set_ylim(148.24516110946269, 24024.62127583265)
+    xl, xr = ax.get_xlim()
+    yl, yr = ax.get_ylim()
+    print("xlim: ({}, {}); ylim: ({}, {})".format(xl, xr, yl, yr));
+    """
 
 
 if __name__ == "__main__":
     bw_color = myblack
-    fp32_color = mybrown
-    fp64_color = myblack
+    fp64_color = mydarkgreen
+    fp32_color = mydarkblue
 
     # Change to the directory where the script is placed
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
