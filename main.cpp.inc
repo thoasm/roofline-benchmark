@@ -42,7 +42,7 @@ void print_info(const benchmark_info &info) {
               << SEP << std::setw(10) << info.inner_work_iters
               << SEP << std::setw(9) << info.compute_iters
               << SEP << std::setw(11) << info.num_elems
-              << NL;
+              << NL << std::flush;
     // clang-format on
 }
 
@@ -62,7 +62,7 @@ struct v_type {
 
 // For compute resolution
 template <typename T, typename IT, IT outer, IT inner, typename... Args>
-void run_benchmark_variations_compute(val_list<IT>, Args &&... args) {}
+void run_benchmark_variations_compute(val_list<IT>, Args &&...args) {}
 
 template <typename T, typename IT, IT outer, IT inner, IT compute_k,
           IT... rem_compute>
@@ -83,12 +83,12 @@ void run_benchmark_variations_compute(val_list<IT, compute_k, rem_compute...>,
 
 // For inner resolution
 template <typename T, typename IT, IT outer, typename... Args>
-void run_benchmark_variations_inner(val_list<IT>, Args &&... args) {}
+void run_benchmark_variations_inner(val_list<IT>, Args &&...args) {}
 
 template <typename T, typename IT, IT outer, IT inner_k, IT... rem_inner,
           typename... Args>
 void run_benchmark_variations_inner(val_list<IT, inner_k, rem_inner...>,
-                                    Args &&... args) {
+                                    Args &&...args) {
     run_benchmark_variations_compute<T, IT, outer, inner_k>(
         std::forward<Args>(args)...);
     // recursion
@@ -103,7 +103,7 @@ void run_benchmark_variations_outer(val_list<IT>, Args &&...) {}
 template <typename T, typename IT, IT outer_k, IT... rem_outer,
           typename... Args>
 void run_benchmark_variations_outer(val_list<IT, outer_k, rem_outer...>,
-                                    Args &&... args) {
+                                    Args &&...args) {
     run_benchmark_variations_inner<T, IT, outer_k>(std::forward<Args>(args)...);
     // recursion
     run_benchmark_variations_outer<T>(val_list<IT, rem_outer...>{},
@@ -114,7 +114,7 @@ template <typename... Args>
 void run_benchmark_variations(type_list<>, Args &&...) {}
 
 template <typename T, typename... RemTypes, typename... Args>
-void run_benchmark_variations(type_list<T, RemTypes...>, Args &&... args) {
+void run_benchmark_variations(type_list<T, RemTypes...>, Args &&...args) {
     run_benchmark_variations_outer<T>(std::forward<Args>(args)...);
     // recursion
     run_benchmark_variations(type_list<RemTypes...>{},
