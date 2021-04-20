@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project(roofline_benchmark LANGUAGES CXX)
 
-option(ROOFLINE_CUDA "Build the CUDA benchmark" ON)
+option(ROOFLINE_CUDA "Build the CUDA benchmark" OFF)
 option(ROOFLINE_HIP "Build the HIP benchmark" OFF)
 option(ROOFLINE_CPU "Build the CPU benchmark" OFF)
 
