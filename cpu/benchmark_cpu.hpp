@@ -5,7 +5,7 @@
 #include <accessor/reduced_row_major.hpp>
 
 //
-#include <immintrin.h>
+//#include <immintrin.h>
 
 #include <array>
 #include <cinttypes>
