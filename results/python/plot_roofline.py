@@ -105,6 +105,18 @@ plot_info["fhlr2"] = {
         "filter": filt_lambda_48,
         }
 
+"""
+plot_info["arm_xavier"] = {
+        "peak_fp64": 0.0,
+        "peak_fp32": 0.0,
+        "peak_fp16": 0.0,
+        "peak_bw": 0.0,
+        "file": "../20210422_1430_jetson_xavier_benchmark_run.csv",
+        "prefix": "xavier_",
+        "filter": filt_lambda_416,
+        }
+"""
+
 
 plot_list = [
         "mi100",
@@ -114,6 +126,7 @@ plot_list = [
         "bwuni-rw",
         "AMD-7742-rw",
         "AMD-7742-ro",
+        #"arm_xavier",
         ]
 
 ### dictionary to match purpose to CSV header
@@ -316,8 +329,8 @@ if __name__ == "__main__":
             ax.axhline(info["peak_bw"], linestyle='--', marker='', linewidth=LineWidth,
                     color=bw_color, label="Peak bandwidth")
 
-        ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
-        ax.set_ylabel("Bandwidth [GB / s]")
+        ax.set_xlabel("Arithmetic Intensity [FLOP/Byte]")
+        ax.set_ylabel("Bandwidth [GB/s]")
         #ax.legend(loc="best")
         ax.legend(loc="lower left")
         plot_figure(fig, "roofline_bandwidth_pai_d3", info["prefix"])
@@ -329,8 +342,8 @@ if __name__ == "__main__":
             ax.axhline(info["peak_bw"], linestyle='--', marker='', linewidth=LineWidth,
                     color=bw_color, label="Peak bandwidth")
 
-        ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
-        ax.set_ylabel("Bandwidth [GB / s]")
+        ax.set_xlabel("Arithmetic Intensity [FLOP/Value]")
+        ax.set_ylabel("Bandwidth [GB/s]")
         ax.legend(loc="lower left")
         plot_figure(fig, "roofline_bandwidth_pv_d3", info["prefix"])
 
@@ -345,8 +358,8 @@ if __name__ == "__main__":
             ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
                     color=fp32_color, label="Peak fp32 performance")
 
-        ax.set_xlabel("Arithmetic Intensity [FLOP / Byte]")
-        ax.set_ylabel("Compute Performance [GFLOP / s]")
+        ax.set_xlabel("Arithmetic Intensity [FLOP/Byte]")
+        ax.set_ylabel("Compute Performance [GFLOP/s]")
         #ax.legend(loc="best")
         ax.legend(loc="lower right")
         plot_figure(fig, "roofline_performance_pai_d3", info["prefix"])
@@ -362,8 +375,8 @@ if __name__ == "__main__":
             ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
                     color=fp32_color, label="Peak fp32 performance")
 
-        ax.set_xlabel("Arithmetic Intensity [FLOP / Value]")
-        ax.set_ylabel("Compute Performance [GFLOP / s]")
+        ax.set_xlabel("Arithmetic Intensity [FLOP/Value]")
+        ax.set_ylabel("Compute Performance [GFLOP/s]")
         #ax.legend(loc="best")
         ax.legend(loc="lower right")
         plot_figure(fig, "roofline_performance_pv_d3", info["prefix"])
