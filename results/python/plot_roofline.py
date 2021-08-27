@@ -144,6 +144,7 @@ h_dict = {
         "#elms": "# Elements",
         }
 
+
 def read_csv(path=None):
     """
     Opens the CSV file in 'path' and returns 2 dictionaries:
@@ -224,6 +225,30 @@ LineWidth = 1
 MarkerSize = 8
 
 
+precisions_to_print = ("double", "float",  "Ac<3, d, d>", "Ac<3, d, f>")
+precision_details = {
+        "double": {
+            "marker": 'X',
+            "color": mygreen,
+            "label": "fp64",
+            },
+        "float": {
+            "marker": 'P',
+            "color": myblue,
+            "label": "fp32",
+            },
+        "Ac<3, d, d>": {
+            "marker": 'x',
+            "color": myorange,
+            "label": "Accessor<fp64, fp64>",
+            },
+        "Ac<3, d, f>": {
+            "marker": '+',
+            "color": myyellow,
+            "label": "Accessor<fp64, fp32>",
+            },
+        }
+
 
 def create_fig_ax():
     """
@@ -260,14 +285,10 @@ def plot_for_all(ax, data, x_key, y_key):
     """
     plots given x and y keys for all precisions of interest on the axis ax.
     """
-    markers = ('X', 'P', 'x', '+')
-    precs = ("double", "float",  "Ac<3, d, d>", "Ac<3, d, f>")
-    colors = (mygreen, myblue, myorange, myyellow)
-    labels = ("fp64", "fp32",  "Accessor<fp64, fp64>", "Accessor<fp64, fp32>")
-    for i in range(len(precs)):
-        ax.plot(data[precs[i]][x_key], data[precs[i]][y_key], label=labels[i],
-                marker=markers[i], color=colors[i], linewidth=LineWidth,
-                markersize=MarkerSize)
+    for prec in precisions_to_print:
+        ax.plot(data[prec][x_key], data[prec][y_key], label=precision_details[prec]["label"],
+                marker=precision_details[prec]["marker"], color=precision_details[prec]["color"],
+                linewidth=LineWidth, markersize=MarkerSize)
     """ To get / set x- and y-limits:
     ax.set_xlim(0.7070722721781199, 1449.6396483523677)
     ax.set_ylim(148.24516110946269, 24024.62127583265)
@@ -275,6 +296,24 @@ def plot_for_all(ax, data, x_key, y_key):
     yl, yr = ax.get_ylim()
     print("xlim: ({}, {}); ylim: ({}, {})".format(xl, xr, yl, yr));
     """
+
+def add_table(ax, plot_data, value_key, colLabel, value_lambda):
+    table_row_labels = []
+    table_vals = []
+    for prec in precisions_to_print:
+        data = plot_data[prec]
+        if prec in precision_details:
+            label = precision_details[prec]["label"]
+            value = value_lambda(data[value_key])
+            table_row_labels.append(label)
+            table_vals.append([value])
+
+    #print(table_row_labels, table_vals)
+    new_table = ax.table(cellText=table_vals, rowLabels=table_row_labels,
+            colLabels=[colLabel], colWidths=[0.15], cellLoc="right",
+            colLoc="left", rowLoc="left", loc="lower center", zorder=3,
+            edges='closed')
+
 
 
 if __name__ == "__main__":
@@ -358,6 +397,7 @@ if __name__ == "__main__":
             ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
                     color=fp32_color, label="Peak fp32 performance")
 
+        add_table(ax, plot_data, "GOPS", "Peak GFLOP/s", lambda x: "{:,}".format(round(max(x))))
         ax.set_xlabel("Arithmetic Intensity [FLOP/Byte]")
         ax.set_ylabel("Compute Performance [GFLOP/s]")
         #ax.legend(loc="best")
@@ -375,6 +415,7 @@ if __name__ == "__main__":
             ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
                     color=fp32_color, label="Peak fp32 performance")
 
+        add_table(ax, plot_data, "GOPS", "Peak GFLOP/s", lambda x: "{:,}".format(round(max(x))))
         ax.set_xlabel("Arithmetic Intensity [FLOP/Value]")
         ax.set_ylabel("Compute Performance [GFLOP/s]")
         #ax.legend(loc="best")
