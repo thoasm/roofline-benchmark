@@ -10,6 +10,8 @@
 #include <array>
 #include <cinttypes>
 #include <iostream>
+#include <limits>
+#include <random>
 #include <type_traits>
 
 #include "../benchmark_info.hpp"
@@ -26,36 +28,64 @@ constexpr std::int32_t num_parallel_computations{4};
 
 //
 
-template <typename T, std::int32_t outer_work_iters,
-          std::int32_t inner_work_iters, std::int32_t compute_iters>
-void set_data(const std::size_t num_elems, const T input, T *data) {
-    const std::size_t parallel_iters =
-        ceildiv(num_elems, inner_work_iters * outer_work_iters);
-    const std::int64_t outer_stride = inner_work_iters;
-    const std::int64_t parallel_stride = outer_stride * outer_work_iters;
-#pragma omp parallel for PARALLEL_FOR_SCHEDULE
-    for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
-        for (std::int32_t o = 0; o < outer_work_iters; ++o) {
-            for (std::int32_t i = 0; i < inner_work_iters; ++i) {
-                data[pi * parallel_stride + o * outer_stride + i] = input;
-            }
-        }
+template <typename T>
+std::enable_if_t<std::is_integral<T>::value> set_data(
+    const std::size_t num_elems, T* data, const unsigned seed)
+{
+    std::default_random_engine engine(seed);
+    std::uniform_int_distribution<T> dist(std::numeric_limits<T>::min(),
+                                          std::numeric_limits<T>::max());
+#pragma omp parallel for default(none) firstprivate(num_elems, engine, dist) \
+    shared(data) PARALLEL_FOR_SCHEDULE
+    for (std::int64_t pi = 0; pi < static_cast<std::int64_t>(num_elems); ++pi) {
+        data[pi] = dist(engine);
     }
 }
 
+template <typename T>
+std::enable_if_t<std::is_floating_point<T>::value> set_data(
+    const std::size_t num_elems, T* data, const unsigned seed)
+{
+    std::default_random_engine engine(seed);
+    std::normal_distribution<T> dist(0, 1);
+#pragma omp parallel for default(none) firstprivate(num_elems, engine, dist) \
+    shared(data) PARALLEL_FOR_SCHEDULE
+    for (std::int64_t pi = 0; pi < static_cast<std::int64_t>(num_elems); ++pi) {
+        data[pi] = dist(engine);
+    }
+}
+
+// Assume it is using POSIT as an input
+template <typename T>
+std::enable_if_t<!std::is_floating_point<T>::value &&
+                 !std::is_integral<T>::value>
+set_data(const std::size_t num_elems, T* data, const unsigned seed)
+{
+    std::default_random_engine engine(seed);
+    std::normal_distribution<double> dist(0, 1);
+#pragma omp parallel for default(none) firstprivate(num_elems, engine, dist) \
+    shared(data) PARALLEL_FOR_SCHEDULE
+    for (std::int64_t pi = 0; pi < static_cast<std::int64_t>(num_elems); ++pi) {
+        data[pi] = static_cast<T>(dist(engine));
+    }
+}
+
+
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-kernel_runtime_info run_benchmark_hand(const std::size_t num_elems,
-                                       const T input, T *data) {
-    const std::size_t parallel_iters =
+kernel_runtime_info run_benchmark_hand(const std::size_t num_elems, T* data,
+                                       const T input)
+{
+    const std::int64_t parallel_iters =
         ceildiv(num_elems, inner_work_iters * outer_work_iters);
     const std::int64_t outer_stride = inner_work_iters;
     const std::int64_t parallel_stride = outer_stride * outer_work_iters;
+
     timer t;
 #if READ_WRITE_BENCHMARK
     t.start();
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE
-    for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
+    for (std::int64_t pi = 0; pi < parallel_iters; ++pi) {
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
             std::array<T, num_parallel_computations> reg{};
             for (std::int32_t i = 0; i < inner_work_iters; ++i) {
@@ -106,7 +136,7 @@ kernel_runtime_info run_benchmark_hand(const std::size_t num_elems,
 #else
     t.start();
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE
-    for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
+    for (std::int64_t pi = 0; pi < parallel_iters; ++pi) {
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
             std::array<T, num_parallel_computations> reg{};
             for (std::int32_t i = 0; i < inner_work_iters; ++i) {
@@ -147,18 +177,19 @@ template <typename ArType, typename StType, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters,
           std::size_t dimensionality>
 kernel_runtime_info run_benchmark_accessor(const std::size_t num_elems,
-                                           const ArType input,
-                                           StType *data_ptr) {
-    const std::size_t parallel_iters =
+                                           StType* data_ptr, const ArType input)
+{
+    const std::int64_t parallel_iters =
         ceildiv(num_elems, inner_work_iters * outer_work_iters);
 
     //*
     static_assert(dimensionality == 3, "Dimensionality must be 3!");
-    std::array<std::size_t, dimensionality> size{
-        {parallel_iters, outer_work_iters, inner_work_iters}};
+    std::array<gko::acc::size_type, dimensionality> size{
+        {static_cast<gko::acc::size_type>(parallel_iters), outer_work_iters,
+         inner_work_iters}};
     /*/
     static_assert(dimensionality == 1, "Dimensionality must be 1!");
-    std::array<std::size_t, dimensionality> size{{outer_work_iters *
+    std::array<gko::acc::size_type, dimensionality> size{{outer_work_iters *
     inner_work_iters * total_threads}};
     //*/
     using accessor =
@@ -170,7 +201,7 @@ kernel_runtime_info run_benchmark_accessor(const std::size_t num_elems,
 #if READ_WRITE_BENCHMARK
     t.start();
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE
-    for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
+    for (std::int64_t pi = 0; pi < parallel_iters; ++pi) {
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
             std::array<ArType, num_parallel_computations> reg{};
             for (std::int32_t i = 0; i < inner_work_iters; ++i) {
@@ -204,7 +235,7 @@ kernel_runtime_info run_benchmark_accessor(const std::size_t num_elems,
 #else
     t.start();
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE
-    for (std::size_t pi = 0; pi < parallel_iters; ++pi) {
+    for (std::int64_t pi = 0; pi < parallel_iters; ++pi) {
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
             std::array<ArType, num_parallel_computations> reg{};
             for (std::int32_t i = 0; i < inner_work_iters; ++i) {

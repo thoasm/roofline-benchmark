@@ -18,12 +18,11 @@
 //
 #include "../device_kernels.hpp.inc"
 
-template <typename T, std::int32_t outer_work_iters,
-          std::int32_t inner_work_iters, std::int32_t compute_iters>
-void set_data(std::size_t num_elems, T input, T *data_ptr) {
+template <typename T>
+void set_data(std::size_t num_elems, T* data_ptr, unsigned seed)
+{
     const dim3 block_(default_block_size);
-    const dim3 grid_(ceildiv(
-        num_elems, inner_work_iters * outer_work_iters * default_block_size));
+    const dim3 grid_(ceildiv(num_elems, default_block_size));
     if (grid_.y != 1 || grid_.z != 1) {
         std::cerr << "Grid is expected to only have x-dimension!\n";
     }
@@ -31,16 +30,16 @@ void set_data(std::size_t num_elems, T input, T *data_ptr) {
         std::cerr << "Block is expected to only have x-dimension!\n";
     }
 
-    hipLaunchKernelGGL(
-        HIP_KERNEL_NAME(set_data_kernel<default_block_size, outer_work_iters,
-                                        inner_work_iters, compute_iters, T>),
-        grid_, block_, 0, 0, input, data_ptr);
+    hipLaunchKernelGGL(HIP_KERNEL_NAME(set_data_kernel<default_block_size, T>),
+                       grid_, block_, 0, 0, num_elems, data_ptr, seed);
 }
+
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-kernel_runtime_info run_benchmark_hand(std::size_t num_elems, T input,
-                                       T *data_ptr) {
+kernel_runtime_info run_benchmark_hand(std::size_t num_elems, T* data_ptr,
+                                       const T input)
+{
     const dim3 block_(default_block_size);
     const dim3 grid_(ceildiv(
         num_elems, inner_work_iters * outer_work_iters * default_block_size));
@@ -56,7 +55,7 @@ kernel_runtime_info run_benchmark_hand(std::size_t num_elems, T input,
     hipLaunchKernelGGL(
         HIP_KERNEL_NAME(benchmark_kernel<default_block_size, outer_work_iters,
                                          inner_work_iters, compute_iters, T>),
-        grid_, block_, 0, 0, input, data_ptr);
+        grid_, block_, 0, 0, data_ptr, input);
     t.stop();
     auto kernel_info =
         get_kernel_info<outer_work_iters, inner_work_iters, compute_iters, T>(
@@ -67,8 +66,9 @@ kernel_runtime_info run_benchmark_hand(std::size_t num_elems, T input,
 template <typename ArType, typename StType, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters,
           std::size_t dimensionality>
-kernel_runtime_info run_benchmark_accessor(std::size_t num_elems, ArType input,
-                                           StType *data_ptr) {
+kernel_runtime_info run_benchmark_accessor(std::size_t num_elems,
+                                           StType* data_ptr, const ArType input)
+{
     const dim3 block_(default_block_size);
     const dim3 grid_(ceildiv(
         num_elems, inner_work_iters * outer_work_iters * default_block_size));
@@ -80,18 +80,18 @@ kernel_runtime_info run_benchmark_accessor(std::size_t num_elems, ArType input,
     }
     // auto total_threads = static_cast<std::size_t>(block_.x) * block_.y *
     //                     block_.z * grid_.x * grid_.y * grid_.z;
-    auto total_threads = static_cast<std::size_t>(block_.x) * grid_.x;
+    auto total_threads = static_cast<gko::acc::size_type>(block_.x) * grid_.x;
 
     //*
     static_assert(dimensionality == 3, "Dimensionality must be 3!");
-    std::array<std::size_t, dimensionality> size{
+    std::array<gko::acc::size_type, dimensionality> size{
         {outer_work_iters, inner_work_iters, total_threads}};
-    std::array<std::size_t, dimensionality - 1> stride{
-        static_cast<std::size_t>(grid_.x) * block_.x * inner_work_iters,
-        static_cast<std::size_t>(block_.x)};
+    std::array<gko::acc::size_type, dimensionality - 1> stride{
+        static_cast<gko::acc::size_type>(grid_.x) * block_.x * inner_work_iters,
+        static_cast<gko::acc::size_type>(block_.x)};
     /*/
     static_assert(dimensionality == 1, "Dimensionality must be 1!");
-    std::array<std::size_t, dimensionality> size{{outer_work_iters *
+    std::array<gko::acc::size_type, dimensionality> size{{outer_work_iters *
     inner_work_iters * total_threads}};
     //*/
     using accessor =
@@ -106,7 +106,7 @@ kernel_runtime_info run_benchmark_accessor(std::size_t num_elems, ArType input,
             benchmark_accessor_kernel<default_block_size, outer_work_iters,
                                       inner_work_iters, compute_iters, ArType,
                                       range>),
-        grid_, block_, 0, 0, input, acc);
+        grid_, block_, 0, 0, acc, input);
     t.stop();
     auto kernel_info = get_kernel_info<outer_work_iters, inner_work_iters,
                                        compute_iters, StType>(num_elems);

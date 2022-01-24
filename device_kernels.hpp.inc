@@ -19,7 +19,8 @@ struct bytes_flops {
 // identical)
 template <std::int32_t outer_work_iters, std::int32_t inner_work_iters,
           std::int32_t compute_iters, typename T>
-constexpr bytes_flops get_kernel_info(std::size_t num_elems) {
+constexpr bytes_flops get_kernel_info(std::size_t num_elems)
+{
 #if USE_ARRAY
     return {num_elems * sizeof(T),
             num_elems * (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2)};
@@ -30,32 +31,19 @@ constexpr bytes_flops get_kernel_info(std::size_t num_elems) {
 #endif
 }
 
-template <std::int32_t block_size, std::int32_t outer_work_iters,
-          std::int32_t inner_work_iters, std::int32_t compute_iters, typename T>
-__global__ void set_data_kernel(const T input, T *__restrict__ data) {
+template <std::int32_t block_size, typename T>
+__global__ void set_data_kernel(std::size_t num_elems, T* __restrict__ data,
+                                const unsigned seed)
+{
+    // TODO: at least for HIP: actually randomize the input data!
     static_assert(block_size > 0, "block_size must be positive!");
-    static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
-    static_assert(compute_iters >= 0,
-                  "compute_iters must be positive or zero!");
-    //*
-    const std::int64_t idx =
-        blockIdx.x * block_size * inner_work_iters + threadIdx.x;
-    const std::int64_t inner_stride = block_size;
-    const std::int64_t outer_stride = gridDim.x * block_size * inner_work_iters;
-    /*/
     const std::int64_t idx = blockIdx.x * block_size + threadIdx.x;
-    const std::int64_t inner_stride = gridDim.x * block_size;
-    const std::int64_t outer_stride = inner_work_iters * inner_stride;
-    //*/
-    // const T input = static_cast<T>(i_input);
 
-    for (std::int32_t o = 0; o < outer_work_iters; ++o) {
-#pragma unroll
-        for (std::int32_t i = 0; i < inner_work_iters; ++i) {
-            data[idx + i * inner_stride + o * outer_stride] = input;
-        }
+    if (idx < num_elems) {
+        data[idx] = 0;
     }
 }
+
 
 /**
  * Note: when changing the `input` type to int, followed by casting it to `T` /
@@ -67,7 +55,8 @@ __global__ void set_data_kernel(const T input, T *__restrict__ data) {
 
 template <std::int32_t block_size, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters, typename T>
-__global__ void benchmark_kernel(const T input, T *__restrict__ data) {
+__global__ void benchmark_kernel(T* __restrict__ data, const T input)
+{
     static_assert(block_size > 0, "block_size must be positive!");
     static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
     static_assert(compute_iters >= 0,
@@ -132,7 +121,8 @@ __global__ void benchmark_kernel(const T input, T *__restrict__ data) {
 template <std::int32_t block_size, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters,
           typename Input, typename Accessor>
-__global__ void benchmark_accessor_kernel(const Input input, Accessor acc) {
+__global__ void benchmark_accessor_kernel(Accessor acc, const Input input)
+{
     static_assert(block_size > 0, "block_size must be positive!");
     static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
     static_assert(compute_iters >= 0,

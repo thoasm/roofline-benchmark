@@ -1,6 +1,7 @@
 #ifndef BENCHMARK_HPP_
 #define BENCHMARK_HPP_
 
+#include <accessor/posit.hpp>
 #include <accessor/range.hpp>
 #include <accessor/reduced_row_major.hpp>
 #include <array>
@@ -25,40 +26,41 @@
 
 template <typename T>
 struct type_to_string {
-    static const char *get() { return typeid(T).name(); }
+    static const char* get() { return typeid(T).name(); }
+    static const char* get_short() { return typeid(T).name(); }
 };
 
-#define SPECIALIZE_TYPE_TO_STRING(type_)            \
-    template <>                                     \
-    struct type_to_string<type_> {                  \
-        static const char *get() { return #type_; } \
+#define SPECIALIZE_TYPE_TO_STRING(type_, str_, sh_str_)    \
+    template <>                                            \
+    struct type_to_string<type_> {                         \
+        static const char* get() { return str_; }          \
+        static const char* get_short() { return sh_str_; } \
     }
 
-#define SPECIALIZE2_TYPE_TO_STRING(type_, str_)   \
-    template <>                                   \
-    struct type_to_string<type_> {                \
-        static const char *get() { return str_; } \
-    }
-
-SPECIALIZE_TYPE_TO_STRING(float);
-SPECIALIZE_TYPE_TO_STRING(double);
-SPECIALIZE2_TYPE_TO_STRING(std::int32_t, "int32");
-SPECIALIZE2_TYPE_TO_STRING(std::int16_t, "int16");
+SPECIALIZE_TYPE_TO_STRING(float, "float", "f");
+SPECIALIZE_TYPE_TO_STRING(double, "double", "d");
+SPECIALIZE_TYPE_TO_STRING(std::int32_t, "int32", "i");
+SPECIALIZE_TYPE_TO_STRING(std::int16_t, "int16", "s");
+SPECIALIZE_TYPE_TO_STRING(gko::acc::posit32_2, "posit<32,2>", "p32");
+SPECIALIZE_TYPE_TO_STRING(gko::acc::posit32_3, "posit<32,3>", "p32-3");
+SPECIALIZE_TYPE_TO_STRING(gko::acc::posit16_2, "posit<16,2>", "p16");
 #undef SPECIALIZE_TYPE_TO_STRING
-#undef SPECIALIZE2_TYPE_TO_STRING
 
-enum class Precision { Pointer, AccessorKeep, AccessorReduced };
+
+enum class Precision { Pointer, AccessorKeep, AccessorReduced, AccessorPosit };
+
 
 class time_series {
-   public:
+public:
     using time_format = double;
     time_series() { series.reserve(30); }
 
     void add_time(time_format time) { series.push_back(time); }
 
-    time_format get_time() const {
+    time_format get_time() const
+    {
         auto reduced{std::numeric_limits<time_format>::max()};
-        for (const auto &t : series) {
+        for (const auto& t : series) {
             if (t < reduced) {
                 reduced = t;
             }
@@ -66,14 +68,16 @@ class time_series {
         return reduced;
     }
 
-   private:
+private:
     std::vector<time_format> series;
 };
 
+
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-benchmark_info run_benchmark(std::size_t num_elems, T input, memory &data,
-                             Precision prec = Precision::Pointer) {
+benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
+                             Precision prec = Precision::Pointer)
+{
     // Reallocate if data is on the CPU to ensure that the correct cores get the
     // data
 #if ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_CPU
@@ -95,33 +99,46 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, memory &data,
         std::is_same<T, double>::value, float,
         std::conditional_t<std::is_same<T, std::int32_t>::value, std::int16_t,
                            T>>;
+    using posit_precision =
+        std::conditional_t<std::is_same<T, double>::value, gko::acc::posit32_2,
+                           std::conditional_t<std::is_same<T, float>::value,
+                                              gko::acc::posit16_2, T>>;
     auto lower_ptr = data.template get<lower_precision>();
+    auto posit_ptr = data.template get<posit_precision>();
+
+    const auto input = static_cast<T>(seed);
 
     constexpr std::size_t dimensionality{3};
     auto run_set_data = [&]() {
-        return set_data<T, outer_work_iters, inner_work_iters, compute_iters>(
-            num_elems, input, data_ptr);
+        return set_data<T>(num_elems, data_ptr, seed);
     };
     auto run_set_data_lower = [&]() {
-        return set_data<lower_precision, outer_work_iters, inner_work_iters,
-                        compute_iters>(
-            num_elems, static_cast<lower_precision>(input), lower_ptr);
+        return set_data<lower_precision>(num_elems, lower_ptr, seed);
+    };
+    auto run_set_data_posit = [&]() {
+        return set_data<posit_precision>(num_elems, posit_ptr, seed);
     };
 
     auto run_hand_kernel = [&]() {
         return run_benchmark_hand<T, outer_work_iters, inner_work_iters,
-                                  compute_iters>(num_elems, input, data_ptr);
+                                  compute_iters>(num_elems, data_ptr, input);
     };
     auto run_accessor_kernel = [&]() {
         return run_benchmark_accessor<T, T, outer_work_iters, inner_work_iters,
                                       compute_iters, dimensionality>(
-            num_elems, input, data_ptr);
+            num_elems, data_ptr, input);
     };
     auto run_lower_accessor_kernel = [&]() {
         return run_benchmark_accessor<T, lower_precision, outer_work_iters,
                                       inner_work_iters, compute_iters,
-                                      dimensionality>(num_elems, input,
-                                                      lower_ptr);
+                                      dimensionality>(num_elems, lower_ptr,
+                                                      input);
+    };
+    auto run_posit_accessor_kernel = [&]() {
+        return run_benchmark_accessor<T, posit_precision, outer_work_iters,
+                                      inner_work_iters, compute_iters,
+                                      dimensionality>(num_elems, posit_ptr,
+                                                      input);
     };
 
     // auto i_input = static_cast<std::int32_t>(input);
@@ -140,8 +157,8 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, memory &data,
         }
     } else if (prec == Precision::AccessorKeep) {
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
-                         ", " + typeid(T).name() + ", " + typeid(T).name() +
-                         ">";
+                         ", " + type_to_string<T>::get_short() + ", " +
+                         type_to_string<T>::get_short() + ">";
         run_set_data();
         synchronize();
         // Warmup
@@ -153,10 +170,10 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, memory &data,
             t_series.add_time(res.runtime_ms);
             synchronize();
         }
-    } else {
+    } else if (prec == Precision::AccessorReduced) {
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
-                         ", " + typeid(T).name() + ", " +
-                         typeid(lower_precision).name() + ">";
+                         ", " + type_to_string<T>::get_short() + ", " +
+                         type_to_string<lower_precision>::get_short() + ">";
 
         run_set_data_lower();
         synchronize();
@@ -169,6 +186,24 @@ benchmark_info run_benchmark(std::size_t num_elems, T input, memory &data,
             t_series.add_time(res.runtime_ms);
             synchronize();
         }
+    } else if (prec == Precision::AccessorPosit) {
+        info.precision = std::string("Ac<") + std::to_string(dimensionality) +
+                         ", " + type_to_string<T>::get_short() + ", " +
+                         type_to_string<posit_precision>::get_short() + ">";
+
+        run_set_data_posit();
+        synchronize();
+        // Warmup
+        info.set_kernel_info(run_posit_accessor_kernel());
+        synchronize();
+
+        for (int i = 0; i < number_runs; ++i) {
+            auto res = run_posit_accessor_kernel();
+            t_series.add_time(res.runtime_ms);
+            synchronize();
+        }
+    } else {
+        info.precision = "error";
     }
     info.time_ms = t_series.get_time();
     return info;
