@@ -117,7 +117,6 @@ plot_info["arm_xavier"] = {
         }
 """
 
-
 plot_list = [
         "mi100",
         "radeon7",
@@ -225,7 +224,7 @@ LineWidth = 1
 MarkerSize = 8
 
 
-precisions_to_print = ("double", "float",  "Ac<3, d, d>", "Ac<3, d, f>")
+precisions_to_print = ("double", "float", "Ac<3, d, d>", "Ac<3, d, f>", "Ac<3, d, p32>", "Ac<3, f, p16>")
 precision_details = {
         "double": {
             "marker": 'X',
@@ -246,6 +245,16 @@ precision_details = {
             "marker": '+',
             "color": myyellow,
             "label": "Accessor<fp64, fp32>",
+            },
+        "Ac<3, d, p32>": {
+            "marker": 'D',
+            "color": mymagenta,
+            "label": "Accessor<fp64, posit32>",
+            },
+        "Ac<3, f, p16>": {
+            "marker": 'o',
+            "color": myblack,
+            "label": "Accessor<fp32, posit16>",
             },
         }
 
@@ -286,6 +295,8 @@ def plot_for_all(ax, data, x_key, y_key):
     plots given x and y keys for all precisions of interest on the axis ax.
     """
     for prec in precisions_to_print:
+        if prec not in data:
+            continue
         ax.plot(data[prec][x_key], data[prec][y_key], label=precision_details[prec]["label"],
                 marker=precision_details[prec]["marker"], color=precision_details[prec]["color"],
                 linewidth=LineWidth, markersize=MarkerSize)
@@ -301,6 +312,8 @@ def add_table(ax, plot_data, value_key, colLabel, value_lambda):
     table_row_labels = []
     table_vals = []
     for prec in precisions_to_print:
+        if prec not in plot_data:
+            continue
         data = plot_data[prec]
         if prec in precision_details:
             label = precision_details[prec]["label"]
