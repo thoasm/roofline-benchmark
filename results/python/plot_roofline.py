@@ -52,7 +52,8 @@ plot_info["v100"] = {
         "peak_fp32": 15700.0,
         "peak_fp16": 125000.0, # TENSOR performance, not pure FP16
         "peak_bw": 900.0,
-        "file": "../20210311_1730_V100_summit.csv",
+        #"file": "../20210311_1730_V100_summit.csv",
+        "file": "../20220124_1931_V100_Summit.csv",
         "prefix": "v100_",
         "filter": filt_lambda_48,
         }
