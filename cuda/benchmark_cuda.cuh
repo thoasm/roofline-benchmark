@@ -66,24 +66,42 @@ __device__ gko::acc::posit16_2 get_random(curandState_t* state)
 }
 
 
-template <std::int32_t block_size, typename T>
-__global__ void set_data_random_kernel(std::size_t num_elems, T* data_ptr,
-                                       unsigned seed)
+template <std::int32_t block_size>
+__global__ void initialize_random_kernel(std::int32_t num_cstate,
+                                         curandState_t* cstate, unsigned seed)
 {
     const std::int64_t idx = blockIdx.x * block_size + threadIdx.x;
-    if (idx < num_elems) {
-        curandState_t cstate;
-        curand_init(seed, idx, 0, &cstate);
-        data_ptr[idx] = get_random<T>( &cstate);
+    if (idx < num_cstate) {
+        curand_init(seed, idx, 0, cstate + idx);
+    }
+}
+
+
+template <std::int32_t block_size, typename T>
+__global__ void set_data_random_kernel(std::size_t num_elems, T* data_ptr,
+                                       const curandState_t* cstate)
+{
+    const std::int64_t start_idx = blockIdx.x * block_size + threadIdx.x;
+    const std::int64_t stride = gridDim.x * blockDim.x;
+    
+    auto cstate_elm = cstate[start_idx];
+    
+    for (auto idx = start_idx; idx < num_elems; idx += stride) {
+        data_ptr[idx] = get_random<T>(&cstate_elm);
     }
 }
 
 
 template <typename T>
-void set_data(std::size_t num_elems, T* data_ptr, unsigned seed)
+void set_data(std::size_t num_elems, T* data_ptr, unsigned seed,
+              RandomNumberGenerator& rng)
 {
-    const dim3 block_(default_block_size);
-    const dim3 grid_(ceildiv(num_elems, default_block_size));
+    constexpr std::int32_t block_size{64};
+    constexpr std::int32_t max_grid_size{100};
+    const dim3 block_(block_size);
+    const dim3 grid_(
+        std::min(ceildiv(static_cast<std::int32_t>(num_elems), block_size),
+                 max_grid_size));
     if (grid_.y != 1 || grid_.z != 1) {
         std::cerr << "Grid is expected to only have x-dimension!\n";
     }
@@ -91,15 +109,21 @@ void set_data(std::size_t num_elems, T* data_ptr, unsigned seed)
         std::cerr << "Block is expected to only have x-dimension!\n";
     }
 
-    set_data_random_kernel<default_block_size, T>
-        <<<grid_, block_>>>(num_elems, data_ptr, seed);
+    const int32_t num_cstate = grid_.x * block_.x;
+    if (rng.prepare_for(num_cstate)) {
+        initialize_random_kernel<block_size>
+            <<<grid_, block_>>>(num_cstate, rng.get_memory(), seed);
+    }
+
+    set_data_random_kernel<block_size, T>
+        <<<grid_, block_>>>(num_elems, data_ptr, rng.get_memory());
 }
 
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-kernel_runtime_info run_benchmark_hand(std::size_t num_elems,
-                                       T* data_ptr, const T input)
+kernel_runtime_info run_benchmark_hand(std::size_t num_elems, T* data_ptr,
+                                       const T input)
 {
     const dim3 block_(default_block_size);
     const dim3 grid_(ceildiv(

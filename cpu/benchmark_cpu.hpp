@@ -30,7 +30,8 @@ constexpr std::int32_t num_parallel_computations{4};
 
 template <typename T>
 std::enable_if_t<std::is_integral<T>::value> set_data(
-    const std::size_t num_elems, T* data, const unsigned seed)
+    const std::size_t num_elems, T* data, const unsigned seed,
+    RandomNumberGenerator& rng)
 {
     std::default_random_engine engine(seed);
     std::uniform_int_distribution<T> dist(std::numeric_limits<T>::min(),
@@ -44,7 +45,8 @@ std::enable_if_t<std::is_integral<T>::value> set_data(
 
 template <typename T>
 std::enable_if_t<std::is_floating_point<T>::value> set_data(
-    const std::size_t num_elems, T* data, const unsigned seed)
+    const std::size_t num_elems, T* data, const unsigned seed,
+    RandomNumberGenerator& rng)
 {
     std::default_random_engine engine(seed);
     std::normal_distribution<T> dist(0, 1);
@@ -59,7 +61,8 @@ std::enable_if_t<std::is_floating_point<T>::value> set_data(
 template <typename T>
 std::enable_if_t<!std::is_floating_point<T>::value &&
                  !std::is_integral<T>::value>
-set_data(const std::size_t num_elems, T* data, const unsigned seed)
+set_data(const std::size_t num_elems, T* data, const unsigned seed,
+         RandomNumberGenerator& rng)
 {
     std::default_random_engine engine(seed);
     std::normal_distribution<double> dist(0, 1);

@@ -40,7 +40,7 @@ __global__ void set_data_kernel(std::size_t num_elems, T* __restrict__ data,
     const std::int64_t idx = blockIdx.x * block_size + threadIdx.x;
 
     if (idx < num_elems) {
-        data[idx] = 0;
+        data[idx] = T{};
     }
 }
 

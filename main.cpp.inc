@@ -79,18 +79,18 @@ template <typename T, typename IT, IT outer, IT inner, IT compute_k,
           IT... rem_compute>
 void run_benchmark_variations_compute(val_list<IT, compute_k, rem_compute...>,
                                       std::size_t num_elems, memory& data,
-                                      unsigned seed)
+                                      unsigned seed, RandomNumberGenerator& rng)
 {
     using value_type = typename T::type;
     auto prec = T::p;
 
     auto info = run_benchmark<value_type, outer, inner, compute_k>(
-        num_elems, data, seed, prec);
+        num_elems, data, seed, rng, prec);
     print_info(info);
 
     // recursion
     run_benchmark_variations_compute<T, IT, outer, inner>(
-        val_list<IT, rem_compute...>{}, num_elems, data, seed);
+        val_list<IT, rem_compute...>{}, num_elems, data, seed, rng);
 }
 
 
@@ -146,9 +146,9 @@ void run_benchmark_variations(type_list<T, RemTypes...>, Args&&... args)
 int main()
 {
     using i_type = std::int32_t;
-    constexpr std::size_t num_elems = 256 * 1024 * 1024;
 
     //*
+    constexpr std::size_t num_elems = 256 * 1024 * 1024;
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
                         v_type<double, Precision::AccessorReduced>,
@@ -167,6 +167,7 @@ int main()
 
     /*/
     // This is a very small list for debugging purposes
+    constexpr std::size_t num_elems = 32 * 1024 * 1024;
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
                         v_type<double, Precision::AccessorReduced>,
@@ -188,12 +189,13 @@ int main()
     */
 
     memory data(num_elems);
+    RandomNumberGenerator rng;
 
     // Warmup
-    run_benchmark<double, 1, 2, 1>(num_elems, data, seed);
+    run_benchmark<double, 1, 2, 1>(num_elems, data, seed, rng);
 
     print_header();
     synchronize();
     run_benchmark_variations(type_list, outer_list, inner_list, compute_list,
-                             num_elems, data, seed);
+                             num_elems, data, seed, rng);
 }

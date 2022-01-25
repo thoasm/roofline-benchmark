@@ -76,6 +76,7 @@ private:
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
 benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
+                             RandomNumberGenerator& rng,
                              Precision prec = Precision::Pointer)
 {
     // Reallocate if data is on the CPU to ensure that the correct cores get the
@@ -110,13 +111,13 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
 
     constexpr std::size_t dimensionality{3};
     auto run_set_data = [&]() {
-        return set_data<T>(num_elems, data_ptr, seed);
+        return set_data<T>(num_elems, data_ptr, seed, rng);
     };
     auto run_set_data_lower = [&]() {
-        return set_data<lower_precision>(num_elems, lower_ptr, seed);
+        return set_data<lower_precision>(num_elems, lower_ptr, seed, rng);
     };
     auto run_set_data_posit = [&]() {
-        return set_data<posit_precision>(num_elems, posit_ptr, seed);
+        return set_data<posit_precision>(num_elems, posit_ptr, seed, rng);
     };
 
     auto run_hand_kernel = [&]() {
@@ -146,6 +147,18 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
     if (prec == Precision::Pointer) {
         run_set_data();
         synchronize();
+
+        /*
+        if (std::is_same<T, double>::value && outer_work_iters == 4 &&
+            inner_work_iters == 8 &&
+            (compute_iters == 0 || compute_iters == 1)) {
+            auto vals = data.template get_vector<double>();
+            for (std::size_t i = data.get_num_elems() - 20;
+                 i < data.get_num_elems(); ++i) {
+                std::cout << vals[i] << '\n';
+            }
+        }
+        //*/
         // Warmup
         info.set_kernel_info(run_hand_kernel());
         synchronize();

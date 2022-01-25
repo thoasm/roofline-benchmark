@@ -19,7 +19,8 @@
 #include "../device_kernels.hpp.inc"
 
 template <typename T>
-void set_data(std::size_t num_elems, T* data_ptr, unsigned seed)
+void set_data(std::size_t num_elems, T* data_ptr, unsigned seed,
+              RandomNumberGenerator& rng)
 {
     const dim3 block_(default_block_size);
     const dim3 grid_(ceildiv(num_elems, default_block_size));
