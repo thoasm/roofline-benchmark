@@ -1,7 +1,11 @@
+#include <algorithm>
 #include <cinttypes>
 #include <iomanip>
 #include <iostream>
 #include <random>
+#include <vector>
+
+#include <cstdlib>  // for std::exit
 
 
 #include "benchmark.hpp"
@@ -71,66 +75,97 @@ struct v_type {
 
 
 // For compute resolution
-template <typename T, typename IT, IT outer, IT inner, typename... Args>
-void run_benchmark_variations_compute(val_list<IT>, Args&&... args)
-{}
+template <typename T, typename IT, IT outer, IT inner, typename Iterator,
+          typename... Args>
+void run_benchmark_variations_compute(val_list<IT>, Iterator curr, Iterator end,
+                                      Args&&... args)
+{
+    if (curr != end) {
+        std::cerr << "Unsupported compute value: " << *curr << '\n';
+        std::exit(1);
+    }
+}
 
 template <typename T, typename IT, IT outer, IT inner, IT compute_k,
-          IT... rem_compute>
+          IT... rem_compute, typename Iterator, typename... Args>
 void run_benchmark_variations_compute(val_list<IT, compute_k, rem_compute...>,
-                                      std::size_t num_elems, memory& data,
-                                      unsigned seed, RandomNumberGenerator& rng)
+                                      Iterator curr, Iterator end,
+                                      Args&&... args)
 {
     using value_type = typename T::type;
     auto prec = T::p;
 
-    auto info = run_benchmark<value_type, outer, inner, compute_k>(
-        num_elems, data, seed, rng, prec);
-    print_info(info);
+    if (curr < end && *curr == compute_k) {
+        auto info =
+            run_benchmark<value_type, outer, inner, compute_k>(args..., prec);
+        print_info(info);
+        ++curr;
+    }
 
     // recursion
     run_benchmark_variations_compute<T, IT, outer, inner>(
-        val_list<IT, rem_compute...>{}, num_elems, data, seed, rng);
+        val_list<IT, rem_compute...>{}, curr, end, std::forward<Args>(args)...);
 }
 
 
 // For inner resolution
-template <typename T, typename IT, IT outer, typename... Args>
-void run_benchmark_variations_inner(val_list<IT>, Args&&... args)
-{}
-
-template <typename T, typename IT, IT outer, IT inner_k, IT... rem_inner,
+template <typename T, typename IT, IT outer, typename Iterator,
           typename... Args>
-void run_benchmark_variations_inner(val_list<IT, inner_k, rem_inner...>,
+void run_benchmark_variations_inner(val_list<IT>, Iterator curr, Iterator end,
                                     Args&&... args)
 {
-    run_benchmark_variations_compute<T, IT, outer, inner_k>(
-        std::forward<Args>(args)...);
+    if (curr != end) {
+        std::cerr << "Unsupported inner value: " << *curr << '\n';
+        std::exit(1);
+    }
+}
+
+template <typename T, typename IT, IT outer, IT inner_k, IT... rem_inner,
+          typename Iterator, typename... Args>
+void run_benchmark_variations_inner(val_list<IT, inner_k, rem_inner...>,
+                                    Iterator curr, Iterator end, Args&&... args)
+{
+    if (curr < end && *curr == inner_k) {
+        run_benchmark_variations_compute<T, IT, outer, inner_k>(
+            std::forward<Args>(args)...);
+        ++curr;
+    }
     // recursion
-    run_benchmark_variations_inner<T, IT, outer>(val_list<IT, rem_inner...>{},
-                                                 std::forward<Args>(args)...);
+    run_benchmark_variations_inner<T, IT, outer>(
+        val_list<IT, rem_inner...>{}, curr, end, std::forward<Args>(args)...);
 }
 
 
 // For outer resolution
-template <typename T, typename IT, typename... Args>
-void run_benchmark_variations_outer(val_list<IT>, Args&&...)
-{}
+template <typename T, typename IT, typename Iterator, typename... Args>
+void run_benchmark_variations_outer(val_list<IT>, Iterator curr, Iterator end,
+                                    Args&&...)
+{
+    if (curr != end) {
+        std::cerr << "Unsupported outer value: " << *curr << '\n';
+        std::exit(1);
+    }
+}
 
 template <typename T, typename IT, IT outer_k, IT... rem_outer,
-          typename... Args>
+          typename Iterator, typename... Args>
 void run_benchmark_variations_outer(val_list<IT, outer_k, rem_outer...>,
-                                    Args&&... args)
+                                    Iterator curr, Iterator end, Args&&... args)
 {
-    run_benchmark_variations_inner<T, IT, outer_k>(std::forward<Args>(args)...);
+    if (curr < end && *curr == outer_k) {
+        run_benchmark_variations_inner<T, IT, outer_k>(
+            std::forward<Args>(args)...);
+        ++curr;
+    }
     // recursion
-    run_benchmark_variations_outer<T>(val_list<IT, rem_outer...>{},
+    run_benchmark_variations_outer<T>(val_list<IT, rem_outer...>{}, curr, end,
                                       std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
-void run_benchmark_variations(type_list<>, Args&&...)
+void run_benchmark_variations(type_list<>,  // Iterator curr, Iterator end,
+                              Args&&...)
 {}
 
 template <typename T, typename... RemTypes, typename... Args>
@@ -143,12 +178,26 @@ void run_benchmark_variations(type_list<T, RemTypes...>, Args&&... args)
 }
 
 
+template <typename IT, typename... Args>
+std::vector<IT> to_vector(val_list<IT>, Args&&... args)
+{
+    return {std::forward<Args>(args)...};
+}
+
+template <typename IT, IT curr_val, IT... RemVals, typename... Args>
+std::vector<IT> to_vector(val_list<IT, curr_val, RemVals...>, Args&&... args)
+{
+    return to_vector(val_list<IT, RemVals...>{}, curr_val,
+                     std::forward<Args>(args)...);
+}
+
+
 int main()
 {
     using i_type = std::int32_t;
 
     //*
-    constexpr std::size_t num_elems = 256 * 1024 * 1024;
+    std::size_t num_elems = 256 * 1024 * 1024;
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
                         v_type<double, Precision::AccessorReduced>,
@@ -158,12 +207,16 @@ int main()
                         v_type<float, Precision::AccessorPosit>,
                         v_type<int, Precision::Pointer>,
                         v_type<int, Precision::AccessorReduced>>
-        type_list;
-    constexpr val_list<i_type, 4> outer_list;
-    constexpr val_list<i_type, 8, 16> inner_list;
+        supported_type_list;
+
+    // All of the following MUST be sorted!
+    constexpr val_list<i_type, 4> supported_outer_list;
+    constexpr val_list<i_type, 8, 16> supported_inner_list;
     constexpr val_list<i_type, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
                        15, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 512>
-        compute_list;
+        supported_compute_list;
+
+    int number_runs = 20;
 
     /*/
     // This is a very small list for debugging purposes
@@ -180,6 +233,26 @@ int main()
     constexpr val_list<i_type, 8> inner_list;
     constexpr val_list<i_type, 0, 1, 32, 128> compute_list;
     //*/
+    // Values mut be sorted!
+
+    /*
+     * For the actual type list: <AR,ST>
+     *
+     * AR:
+     * d -> double
+     * f -> float
+     * i -> int
+     *
+     * ST:
+     * pt -> Pointer
+     * ak -> AccessorKeep
+     * ar -> AccessorReduced
+     * ap -> AccessorPosit
+     */
+
+    auto outer_list = to_vector(supported_outer_list);
+    auto inner_list = to_vector(supported_inner_list);
+    auto compute_list = to_vector(supported_compute_list);
 
     const unsigned seed{42};
 
@@ -188,14 +261,23 @@ int main()
               << (USE_ARRAY ? "used" : "NOT used") << "; " << '\n';
     */
 
+    // Sorting must be ensured for the translation runtime -> compile time
+    std::sort(outer_list.begin(), outer_list.end());
+    std::sort(inner_list.begin(), inner_list.end());
+    std::sort(compute_list.begin(), compute_list.end());
+
+
     memory data(num_elems);
     RandomNumberGenerator rng;
 
     // Warmup
-    run_benchmark<double, 1, 2, 1>(num_elems, data, seed, rng);
+    run_benchmark<double, 1, 2, 1>(1, num_elems, data, seed, rng);
 
     print_header();
     synchronize();
-    run_benchmark_variations(type_list, outer_list, inner_list, compute_list,
-                             num_elems, data, seed, rng);
+    run_benchmark_variations(
+        supported_type_list, supported_outer_list, outer_list.begin(),
+        outer_list.end(), supported_inner_list, inner_list.begin(),
+        inner_list.end(), short_compute_list, compute_list.begin(),
+        compute_list.end(), number_runs, num_elems, data, seed, rng);
 }

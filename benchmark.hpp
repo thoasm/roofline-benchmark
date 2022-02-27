@@ -12,9 +12,11 @@
 #include <typeinfo>
 #include <vector>
 
+
 #include "benchmark_info.hpp"
 #include "config.hpp"
 #include "exec_helper.hpp"
+
 
 #if ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_CUDA
 #include "cuda/benchmark_cuda.cuh"
@@ -23,6 +25,7 @@
 #elif ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_CPU
 #include "cpu/benchmark_cpu.hpp"
 #endif
+
 
 template <typename T>
 struct type_to_string {
@@ -53,7 +56,7 @@ enum class Precision { Pointer, AccessorKeep, AccessorReduced, AccessorPosit };
 class time_series {
 public:
     using time_format = double;
-    time_series() { series.reserve(30); }
+    time_series(int expected_runs = 30) { series.reserve(expected_runs); }
 
     void add_time(time_format time) { series.push_back(time); }
 
@@ -75,7 +78,8 @@ private:
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
-benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
+benchmark_info run_benchmark(int number_runs, std::size_t num_elems,
+                             memory& data, unsigned seed,
                              RandomNumberGenerator& rng,
                              Precision prec = Precision::Pointer)
 {
@@ -86,9 +90,7 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
 #endif
 
     auto data_ptr = data.template get<T>();
-    constexpr int number_runs{20};
     benchmark_info info;
-    // Precision prec = Precision::Pointer;
 
     info.precision = type_to_string<T>::get();
     info.outer_work_iters = outer_work_iters;
@@ -142,23 +144,11 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
                                                       input);
     };
 
-    // auto i_input = static_cast<std::int32_t>(input);
-    time_series t_series;
+    time_series t_series(number_runs);
     if (prec == Precision::Pointer) {
         run_set_data();
         synchronize();
 
-        /*
-        if (std::is_same<T, double>::value && outer_work_iters == 4 &&
-            inner_work_iters == 8 &&
-            (compute_iters == 0 || compute_iters == 1)) {
-            auto vals = data.template get_vector<double>();
-            for (std::size_t i = data.get_num_elems() - 20;
-                 i < data.get_num_elems(); ++i) {
-                std::cout << vals[i] << '\n';
-            }
-        }
-        //*/
         // Warmup
         info.set_kernel_info(run_hand_kernel());
         synchronize();
