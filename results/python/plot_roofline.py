@@ -44,7 +44,8 @@ plot_info["a100"] = {
         "peak_fp32": 19490.0,
         "peak_fp16": 77970.0,
         "peak_bw": 1555.0,
-        "file": "../20201125_A100_roofline_d3.csv",
+        #"file": "../20201125_A100_roofline_d3.csv",
+        "file": "../20220624_1705_A100.csv",
         "prefix": "a100_",
         "filter": filt_lambda_48,
         }
