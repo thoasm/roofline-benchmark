@@ -35,7 +35,9 @@ plot_info["mi100"] = {
         "peak_fp16": 18460.0,
         "peak_bw": 1200.0,
         #"file": "../20210312_2000_MI100.csv",
-        "file": "../20220623_1753_MI100.csv",
+        #"file": "../20220623_1753_MI100.csv",
+        #"file": "../20220623_1758_MI100.csv",
+        "file": "../20220628_1355_MI100.csv",
         "prefix": "mi100_",
         "filter": filt_lambda_18,
         }
