@@ -41,6 +41,15 @@ plot_info["mi100"] = {
         "prefix": "mi100_",
         "filter": filt_lambda_18,
         }
+plot_info["mi250"] = {
+        "peak_fp64": 0.0,
+        "peak_fp32": 0.0,
+        "peak_fp16": 0.0,
+        "peak_bw": 0.0,
+        "file": "../20220913_1900_MI250_Crusher.csv",
+        "prefix": "mi250_",
+        "filter": filt_lambda_48,
+        }
 plot_info["a100"] = {
         "peak_fp64": 9746.0,
         "peak_fp32": 19490.0,
@@ -124,6 +133,7 @@ plot_info["arm_xavier"] = {
 
 plot_list = [
         "mi100",
+        "mi250",
         "radeon7",
         "a100",
         "v100",
