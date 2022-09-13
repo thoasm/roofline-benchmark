@@ -10,11 +10,12 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-set(GINKGO_DIR "$ENV{HOME}/projects/ginkgo_github" CACHE PATH
+set(GINKGO_DIR "$ENV{HOME}/projects/ginkgo" CACHE PATH
     "Directory of Ginkgo")
 
 function(roofline_apply_default_target_settings target)
-    target_compile_features("${target}" PUBLIC cxx_std_14)
+    #target_compile_features("${target}" PUBLIC cxx_std_14)
+    set_property(TARGET "${target}" PROPERTY CXX_STANDARD 14)
     target_include_directories("${target}" PRIVATE
         "${GINKGO_DIR}"
         )
@@ -149,14 +150,16 @@ if (ROOFLINE_HIP)
     #    HIPCC_OPTIONS ${MY_HIPCC_OPTIONS}
     #    HCC_OPTIONS ${MY_HCC_OPTIONS}
     #    NVCC_OPTIONS ${MY_NVCC_OPTIONS})
-    hip_add_executable(${MY_TARGET_NAME} ${MY_SOURCE_FILES}
-        HIPCC_OPTIONS ${MY_HIPCC_OPTIONS}
-        HCC_OPTIONS ${MY_HCC_OPTIONS}
-	#CLANG_OPTIONS ${ROOFLINE_HIP_CLANG_COMPILER_FLAGS}
-        NVCC_OPTIONS ${MY_NVCC_OPTIONS})
+    #hip_add_executable(${MY_TARGET_NAME} ${MY_SOURCE_FILES}
+    #    HIPCC_OPTIONS ${MY_HIPCC_OPTIONS}
+    #    HCC_OPTIONS ${MY_HCC_OPTIONS}
+    #    #CLANG_OPTIONS ${ROOFLINE_HIP_CLANG_COMPILER_FLAGS}
+    #    NVCC_OPTIONS ${MY_NVCC_OPTIONS})
     #set_target_properties(hip::device PROPERTIES INTERFACE_COMPILE_OPTIONS "")
     #set_target_properties(hip::device PROPERTIES INTERFACE_LINK_LIBRARIES "hip::host")
     #target_link_libraries("${target}" hip::device)
+    add_executable(${MY_TARGET_NAME} ${MY_SOURCE_FILES})
+    target_link_libraries("${target}" hip::device)
     
     target_compile_definitions("${target}" PRIVATE ROOFLINE_HIP_CODE)
     roofline_apply_default_target_settings("${target}")
