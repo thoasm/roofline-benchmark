@@ -44,11 +44,16 @@ SPECIALIZE_TYPE_TO_STRING(std::int16_t, "int16", "s");
 SPECIALIZE_TYPE_TO_STRING(gko::acc::posit32_2, "posit<32,2>", "p32");
 SPECIALIZE_TYPE_TO_STRING(gko::acc::posit32_3, "posit<32,3>", "p32-3");
 SPECIALIZE_TYPE_TO_STRING(gko::acc::posit16_2, "posit<16,2>", "p16");
+SPECIALIZE_TYPE_TO_STRING(char, "frsz2-32", "frsz2-32");
 #undef SPECIALIZE_TYPE_TO_STRING
 
-
-enum class Precision { Pointer, AccessorKeep, AccessorReduced, AccessorPosit };
-
+enum class Precision {
+    Pointer,
+    AccessorKeep,
+    AccessorReduced,
+    AccessorPosit,
+    Frsz2_32
+};
 
 class time_series {
 public:
@@ -71,7 +76,6 @@ public:
 private:
     std::vector<time_format> series;
 };
-
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
@@ -104,8 +108,10 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
         std::conditional_t<std::is_same<T, double>::value, gko::acc::posit32_2,
                            std::conditional_t<std::is_same<T, float>::value,
                                               gko::acc::posit16_2, T>>;
+    using frsz_32 = frsz::frsz2_compressor<32, 32, double, std::int16_t>;
     auto lower_ptr = data.template get<lower_precision>();
     auto posit_ptr = data.template get<posit_precision>();
+    auto byte_ptr = data.template get<std::uint8_t>();
 
     const auto input = static_cast<T>(seed);
 
@@ -118,6 +124,9 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
     };
     auto run_set_data_posit = [&]() {
         return set_data<posit_precision>(num_elems, posit_ptr, seed, rng);
+    };
+    auto run_set_data_frsz2 = [&]() {
+        return set_frsz2_data<frsz_32>(num_elems, byte_ptr, seed, rng);
     };
 
     auto run_hand_kernel = [&]() {
@@ -140,6 +149,10 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
                                       inner_work_iters, compute_iters,
                                       dimensionality>(num_elems, posit_ptr,
                                                       input);
+    };
+    auto run_frsz_kernel = [&]() {
+        return run_benchmark_frsz<frsz_32, outer_work_iters, inner_work_iters,
+                                  compute_iters>(num_elems, byte_ptr, input);
     };
 
     // auto i_input = static_cast<std::int32_t>(input);
@@ -212,6 +225,20 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
 
         for (int i = 0; i < number_runs; ++i) {
             auto res = run_posit_accessor_kernel();
+            t_series.add_time(res.runtime_ms);
+            synchronize();
+        }
+    } else if (prec == Precision::Frsz2_32) {
+        info.precision = std::string("frsz2-32");
+
+        run_set_data_frsz2();
+        synchronize();
+        // Warmup
+        info.set_kernel_info(run_frsz_kernel());
+        synchronize();
+
+        for (int i = 0; i < number_runs; ++i) {
+            auto res = run_frsz_kernel();
             t_series.add_time(res.runtime_ms);
             synchronize();
         }

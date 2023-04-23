@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project(roofline_benchmark LANGUAGES CXX)
 
+option(ROOFLINE_FRSZ "Build the FRSZ benchmark" OFF)
 option(ROOFLINE_CUDA "Build the CUDA benchmark" OFF)
 option(ROOFLINE_HIP "Build the HIP benchmark" OFF)
 option(ROOFLINE_CPU "Build the CPU benchmark" OFF)
@@ -21,11 +22,14 @@ function(roofline_apply_default_target_settings target)
 endfunction()
 
 
+if (ROOFLINE_FRSZ)
+    find_package(frsz REQUIRED)
+endif()
+
 if (ROOFLINE_CPU)
     find_package(OpenMP REQUIRED)
     set(target "roofline_cpu")
     add_executable("${target}")
-    target_link_libraries("${target}" PUBLIC OpenMP::OpenMP_CXX)
     roofline_apply_default_target_settings("${target}")
     target_compile_definitions("${target}" PRIVATE ROOFLINE_CPU_CODE)
 
@@ -40,6 +44,10 @@ if (ROOFLINE_CPU)
         -march=native
         -Wno-unused-parameter
         )
+    
+    if (ROOFLINE_FRSZ)
+        target_link_libraries("${target}" PRIVATE OpenMP::OpenMP_CXX frsz::frsz)
+    endif()
 endif()
 
 if (ROOFLINE_CUDA)
@@ -72,6 +80,10 @@ if (ROOFLINE_CUDA)
     # Include CUDA header directory in cpp files
     #"${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
         )
+
+    if (ROOFLINE_FRSZ)
+        target_link_libraries(${target} PRIVATE frsz::frsz)
+    endif()
 
 
     # Command to get PTX code:

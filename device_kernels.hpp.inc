@@ -8,6 +8,8 @@
 
 #define USE_ARRAY 1
 
+// TODO add todal_elements to each benchmark kernel function!
+
 constexpr std::int32_t default_block_size{256};
 
 struct bytes_flops {
@@ -27,6 +29,21 @@ constexpr bytes_flops get_kernel_info(std::size_t num_elems)
     // Note: 2/2(==1) because: 2 for FMA for inner/2 iterations
 #else
     return {num_elems * sizeof(T),
+            num_elems * static_cast<std::size_t>(compute_iters + 1) * 2};
+#endif
+}
+
+// Returns the number of computations performed by the FRSZ compression
+template <std::int32_t outer_work_iters, std::int32_t inner_work_iters,
+          std::int32_t compute_iters, typename FrszCompressor>
+constexpr bytes_flops get_frsz_kernel_info(std::size_t num_elems)
+{
+#if USE_ARRAY
+    return {FrszCompressor::compute_compressed_memory_size_byte(num_elems),
+            num_elems * (static_cast<std::size_t>(compute_iters) * 2 + 2 / 2)};
+    // Note: 2/2(==1) because: 2 for FMA for inner/2 iterations
+#else
+    return {FrszCompressor::compute_compressed_memory_size_byte(num_elems),
             num_elems * static_cast<std::size_t>(compute_iters + 1) * 2};
 #endif
 }
@@ -190,3 +207,79 @@ __global__ void benchmark_accessor_kernel(Accessor acc, const Input input)
 #endif  // USE_ARRAY
 }
 
+// Specialized for FRSZ compression
+template <std::int32_t block_size, std::int32_t outer_work_iters,
+          std::int32_t inner_work_iters, std::int32_t compute_iters,
+          typename FrszCompressor>
+__global__ void benchmark_frsz_kernel(
+    std::uint8_t* __restrict__ data,
+    const typename FrszCompressor::fp_type input)
+{
+    using arithmetic_type = typename FrszCompressor::fp_type;
+    static_assert(block_size > 0, "block_size must be positive!");
+    static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
+    static_assert(compute_iters >= 0,
+                  "compute_iters must be positive or zero!");
+    static_assert(
+        block_size == FrszCompressor::max_exp_block_size,
+        "Block size must be the maximum exp block size (at least for now)!");
+    const std::int64_t idx =
+        blockIdx.x * block_size * inner_work_iters + threadIdx.x;
+    constexpr std::int64_t inner_stride = block_size;
+    const std::int64_t outer_stride = gridDim.x * block_size * inner_work_iters;
+
+    const std::size_t total_elements =
+        outer_stride * gridDim.x * block_size * inner_work_iters;
+
+#if USE_ARRAY
+    static_assert(inner_work_iters % 2 == 0,
+                  "inner_work_iters must be dividable by 2!");
+    arithmetic_type reg[inner_work_iters];
+    for (std::int32_t o = 0; o < outer_work_iters; ++o) {
+#pragma unroll
+        for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+            // reg[i] = data[idx + i * inner_stride + o * outer_stride];
+            reg[i] = FrszCompressor::decompress_gpu_function(
+                blockIdx.x * block_size * inner_work_iters + i * inner_stride +
+                    o * outer_stride,
+                total_elements, data);
+#pragma unroll 128
+            for (std::int32_t c = 0; c < compute_iters; ++c) {
+                reg[i] = reg[i] * reg[i] + input;
+            }
+        }
+        arithmetic_type reduced{};
+#pragma unroll
+        for (std::int32_t i = 0; i < inner_work_iters; i += 2) {
+            reduced = reg[i] * reg[i + 1] + reduced;
+        }
+        // Intentionally is never true
+        if (reduced == static_cast<arithmetic_type>(-1)) {
+            data[idx + o * outer_stride] = static_cast<std::uint8_t>(reduced);
+        }
+    }
+
+#else
+    arithmetic_type reg{1};
+    for (std::int32_t o = 0; o < outer_work_iters; ++o) {
+#pragma unroll
+        for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+            // const arithmetic_type mem =
+            //     data[idx + i * inner_stride + o * outer_stride];
+            const arithmetic_type mem = FrszCompressor::decompress_gpu_function(
+                blockIdx.x * block_size * inner_work_iters + i * inner_stride +
+                    o * outer_stride,
+                total_elements, data);
+            reg = mem * input + reg;
+#pragma unroll 128
+            for (std::int32_t c = 0; c < compute_iters; ++c) {
+                reg = reg * reg + input;
+            }
+        }
+        // Intentionally is never true
+        if (reg == static_cast<arithmetic_type>(-1)) {
+            data[idx + o * outer_stride] = static_cast<std::uint8_t>(reg);
+        }
+    }
+#endif  // USE_ARRAY
+}

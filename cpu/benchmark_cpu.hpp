@@ -9,6 +9,7 @@
 
 #include <array>
 #include <cinttypes>
+#include <frsz2.hpp>
 #include <iostream>
 #include <limits>
 #include <random>

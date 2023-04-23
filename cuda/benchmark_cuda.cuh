@@ -1,26 +1,20 @@
 #ifndef BENCHMARK_CUDA_CUH_
 #define BENCHMARK_CUDA_CUH_
 
+#include <curand_kernel.h>
+
 #include <accessor/posit.hpp>
 #include <accessor/range.hpp>
 #include <accessor/reduced_row_major.hpp>
-
-
 #include <array>
-#include <cinttypes>
+#include <cstdint>
+#include <frsz2.hpp>
 #include <iostream>
 #include <type_traits>
 
-
-#include <curand_kernel.h>
-
-
 #include "../benchmark_info.hpp"
-#include "../exec_helper.hpp"
-
-
 #include "../device_kernels.hpp.inc"
-
+#include "../exec_helper.hpp"
 
 template <typename T>
 T get_random(curandState_t*)
@@ -65,7 +59,6 @@ __device__ gko::acc::posit16_2 get_random(curandState_t* state)
     return gko::acc::posit16_2{get_random<float>(state)};
 }
 
-
 template <std::int32_t block_size>
 __global__ void initialize_random_kernel(std::int32_t num_cstate,
                                          curandState_t* cstate, unsigned seed)
@@ -76,21 +69,19 @@ __global__ void initialize_random_kernel(std::int32_t num_cstate,
     }
 }
 
-
 template <std::int32_t block_size, typename T>
 __global__ void set_data_random_kernel(std::size_t num_elems, T* data_ptr,
                                        const curandState_t* cstate)
 {
     const std::int64_t start_idx = blockIdx.x * block_size + threadIdx.x;
     const std::int64_t stride = gridDim.x * blockDim.x;
-    
+
     auto cstate_elm = cstate[start_idx];
-    
+
     for (auto idx = start_idx; idx < num_elems; idx += stride) {
         data_ptr[idx] = get_random<T>(&cstate_elm);
     }
 }
-
 
 template <typename T>
 void set_data(std::size_t num_elems, T* data_ptr, unsigned seed,
@@ -119,6 +110,48 @@ void set_data(std::size_t num_elems, T* data_ptr, unsigned seed,
         <<<grid_, block_>>>(num_elems, data_ptr, rng.get_memory());
 }
 
+template <std::int32_t block_size, typename FrszCompressor>
+__global__ void set_frsz2_data_random_kernel(std::size_t num_elems,
+                                             std::uint8_t* data_ptr,
+                                             const curandState_t* cstate)
+{
+    auto cstate_elm = cstate[blockIdx.x * block_size + threadIdx.x];
+
+    for (std::int64_t block_idx = blockIdx.x;
+         block_idx * block_size < num_elems; block_idx += gridDim.x) {
+        FrszCompressor::compress_gpu_function(
+            block_idx,
+            get_random<typename FrszCompressor::fp_type>(&cstate_elm),
+            num_elems, data_ptr);
+    }
+}
+
+template <typename FrszCompressor>
+void set_frsz2_data(std::size_t num_elems, std::uint8_t* data_ptr,
+                    unsigned seed, RandomNumberGenerator& rng)
+{
+    constexpr std::int32_t block_size{FrszCompressor::max_exp_block_size};
+    constexpr std::int32_t max_grid_size{50};
+    const dim3 block_(block_size);
+    const dim3 grid_(
+        std::min(ceildiv(static_cast<std::int32_t>(num_elems), block_size),
+                 max_grid_size));
+    if (grid_.y != 1 || grid_.z != 1) {
+        std::cerr << "Grid is expected to only have x-dimension!\n";
+    }
+    if (block_.y != 1 || block_.z != 1) {
+        std::cerr << "Block is expected to only have x-dimension!\n";
+    }
+
+    const int32_t num_cstate = grid_.x * block_.x;
+    if (rng.prepare_for(num_cstate)) {
+        initialize_random_kernel<block_size>
+            <<<grid_, block_>>>(num_cstate, rng.get_memory(), seed);
+    }
+
+    set_frsz2_data_random_kernel<block_size, FrszCompressor>
+        <<<grid_, block_>>>(num_elems, data_ptr, rng.get_memory());
+}
 
 template <typename T, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters>
@@ -190,6 +223,35 @@ kernel_runtime_info run_benchmark_accessor(std::size_t num_elems,
     t.stop();
     auto kernel_info = get_kernel_info<outer_work_iters, inner_work_iters,
                                        compute_iters, StType>(num_elems);
+    return {kernel_info.bytes, kernel_info.comps, t.get_time()};
+}
+
+template <typename FrszCompressor, std::int32_t outer_work_iters,
+          std::int32_t inner_work_iters, std::int32_t compute_iters>
+kernel_runtime_info run_benchmark_frsz(
+    std::size_t num_elems, std::uint8_t* data_ptr,
+    const typename FrszCompressor::fp_type input)
+{
+    constexpr int block_size = FrszCompressor::max_exp_block_size;
+    const dim3 block_(block_size);
+    const dim3 grid_(
+        ceildiv(num_elems, inner_work_iters * outer_work_iters * block_size));
+    if (grid_.y != 1 || grid_.z != 1) {
+        std::cerr << "Grid is expected to only have x-dimension!\n";
+    }
+    if (block_.y != 1 || block_.z != 1) {
+        std::cerr << "Block is expected to only have x-dimension!\n";
+    }
+
+    timer t;
+    t.start();
+    benchmark_frsz_kernel<block_size, outer_work_iters, inner_work_iters,
+                          compute_iters, FrszCompressor>
+        <<<grid_, block_>>>(data_ptr, input);
+    t.stop();
+    auto kernel_info =
+        get_frsz_kernel_info<outer_work_iters, inner_work_iters, compute_iters,
+                             FrszCompressor>(num_elems);
     return {kernel_info.bytes, kernel_info.comps, t.get_time()};
 }
 
