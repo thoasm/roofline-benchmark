@@ -43,7 +43,8 @@ plot_info["a100"] = {
         "peak_fp32": 19490.0,
         "peak_fp16": 77970.0,
         "peak_bw": 1555.0,
-        "file": "../20201125_A100_roofline_d3.csv",
+        #"file": "../20201125_A100_roofline_d3.csv",
+        "file": "../20230503_1830_A100_guyot_roofline.csv",
         "prefix": "a100_",
         "filter": filt_lambda_48,
         }
@@ -225,7 +226,7 @@ LineWidth = 1
 MarkerSize = 8
 
 
-precisions_to_print = ("double", "float", "Ac<3, d, d>", "Ac<3, d, f>", "Ac<3, d, p32>", "Ac<3, f, p16>")
+precisions_to_print = ("double", "float", "Ac<3, d, d>", "Ac<3, d, f>", "Ac<3, d, p32>", "Ac<3, f, p16>", "frsz2-32")
 precision_details = {
         "double": {
             "marker": 'X',
@@ -256,6 +257,11 @@ precision_details = {
             "marker": 'o',
             "color": myblack,
             "label": "Accessor<fp32, posit16>",
+            },
+        "frsz2-32": {
+            "marker": 'd',
+            "color": mycyan,
+            "label": "frsz2-32",
             },
         }
 
@@ -345,6 +351,7 @@ if __name__ == "__main__":
     for device in plot_list:
         info = plot_info[device]
         data_dict, i_dict = read_csv(info["file"])
+        print("Keys: {}".format([data_dict.keys()]))
 
         data_dict = filter_data(data_dict, info["filter"])
 
