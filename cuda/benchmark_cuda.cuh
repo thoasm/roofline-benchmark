@@ -8,13 +8,13 @@
 #include <accessor/reduced_row_major.hpp>
 #include <array>
 #include <cstdint>
-#include <frsz2.hpp>
 #include <iostream>
 #include <type_traits>
 
 #include "../benchmark_info.hpp"
 #include "../device_kernels.hpp.inc"
 #include "../exec_helper.hpp"
+#include "frsz2.hpp"
 
 template <typename T>
 T get_random(curandState_t*)
@@ -201,7 +201,7 @@ kernel_runtime_info run_benchmark_accessor(std::size_t num_elems,
     //*
     static_assert(dimensionality == 3, "Dimensionality must be 3!");
     std::array<gko::acc::size_type, dimensionality> size{
-        {outer_work_iters, inner_work_iters, total_threads}};
+        {outer_work_iters, inner_work_iters, total_threads * inner_work_iters}};
     std::array<gko::acc::size_type, dimensionality - 1> stride{
         static_cast<gko::acc::size_type>(grid_.x) * block_.x * inner_work_iters,
         static_cast<gko::acc::size_type>(block_.x)};
@@ -232,7 +232,9 @@ kernel_runtime_info run_benchmark_frsz(
     std::size_t num_elems, std::uint8_t* data_ptr,
     const typename FrszCompressor::fp_type input)
 {
-    constexpr int block_size = FrszCompressor::max_exp_block_size;
+    constexpr int blocks_per_tb = 8;
+    constexpr int block_size =
+        blocks_per_tb * FrszCompressor::max_exp_block_size;
     const dim3 block_(block_size);
     const dim3 grid_(
         ceildiv(num_elems, inner_work_iters * outer_work_iters * block_size));
@@ -246,8 +248,8 @@ kernel_runtime_info run_benchmark_frsz(
     timer t;
     t.start();
     benchmark_frsz_kernel<block_size, outer_work_iters, inner_work_iters,
-                          compute_iters, FrszCompressor>
-        <<<grid_, block_>>>(data_ptr, input);
+                          compute_iters, FrszCompressor, blocks_per_tb>
+        <<<grid_, block_>>>(data_ptr, input, num_elems);
     t.stop();
     auto kernel_info =
         get_frsz_kernel_info<outer_work_iters, inner_work_iters, compute_iters,
