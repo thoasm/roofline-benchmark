@@ -10,7 +10,8 @@
 constexpr char SEP = ';';
 constexpr char NL = '\n';
 
-void print_header() {
+void print_header()
+{
     // clang-format off
     std::cout << std::right;
     std::cout << std::setw(15) << "Precision"
@@ -27,7 +28,8 @@ void print_header() {
     // clang-format on
 }
 
-void print_info(const benchmark_info& info) {
+void print_info(const benchmark_info& info)
+{
     // clang-format off
     // std::cout << std::defaultfloat << std::setprecision(5);
     std::cout << std::fixed << std::setprecision(5);
@@ -62,14 +64,15 @@ struct v_type {
 
 // For compute resolution
 template <typename T, typename IT, IT outer, IT inner, typename... Args>
-void run_benchmark_variations_compute(val_list<IT>, Args&&... args) {}
+void run_benchmark_variations_compute(val_list<IT>, Args&&... args)
+{}
 
 template <typename T, typename IT, IT outer, IT inner, IT compute_k,
           IT... rem_compute>
 void run_benchmark_variations_compute(val_list<IT, compute_k, rem_compute...>,
                                       std::size_t num_elems, memory& data,
-                                      unsigned seed,
-                                      RandomNumberGenerator& rng) {
+                                      unsigned seed, RandomNumberGenerator& rng)
+{
     using value_type = typename T::type;
     auto prec = T::p;
 
@@ -84,12 +87,14 @@ void run_benchmark_variations_compute(val_list<IT, compute_k, rem_compute...>,
 
 // For inner resolution
 template <typename T, typename IT, IT outer, typename... Args>
-void run_benchmark_variations_inner(val_list<IT>, Args&&... args) {}
+void run_benchmark_variations_inner(val_list<IT>, Args&&... args)
+{}
 
 template <typename T, typename IT, IT outer, IT inner_k, IT... rem_inner,
           typename... Args>
 void run_benchmark_variations_inner(val_list<IT, inner_k, rem_inner...>,
-                                    Args&&... args) {
+                                    Args&&... args)
+{
     run_benchmark_variations_compute<T, IT, outer, inner_k>(
         std::forward<Args>(args)...);
     // recursion
@@ -99,12 +104,14 @@ void run_benchmark_variations_inner(val_list<IT, inner_k, rem_inner...>,
 
 // For outer resolution
 template <typename T, typename IT, typename... Args>
-void run_benchmark_variations_outer(val_list<IT>, Args&&...) {}
+void run_benchmark_variations_outer(val_list<IT>, Args&&...)
+{}
 
 template <typename T, typename IT, IT outer_k, IT... rem_outer,
           typename... Args>
 void run_benchmark_variations_outer(val_list<IT, outer_k, rem_outer...>,
-                                    Args&&... args) {
+                                    Args&&... args)
+{
     run_benchmark_variations_inner<T, IT, outer_k>(std::forward<Args>(args)...);
     // recursion
     run_benchmark_variations_outer<T>(val_list<IT, rem_outer...>{},
@@ -112,20 +119,23 @@ void run_benchmark_variations_outer(val_list<IT, outer_k, rem_outer...>,
 }
 
 template <typename... Args>
-void run_benchmark_variations(type_list<>, Args&&...) {}
+void run_benchmark_variations(type_list<>, Args&&...)
+{}
 
 template <typename T, typename... RemTypes, typename... Args>
-void run_benchmark_variations(type_list<T, RemTypes...>, Args&&... args) {
+void run_benchmark_variations(type_list<T, RemTypes...>, Args&&... args)
+{
     run_benchmark_variations_outer<T>(std::forward<Args>(args)...);
     // recursion
     run_benchmark_variations(type_list<RemTypes...>{},
                              std::forward<Args>(args)...);
 }
 
-int main() {
+int main()
+{
     using i_type = std::int32_t;
 
-    /*
+    //*
     constexpr std::size_t num_elems = 256 * 1024 * 1024;
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
@@ -135,10 +145,12 @@ int main() {
                         v_type<float, Precision::AccessorKeep>,
                         v_type<float, Precision::AccessorPosit>,
                         v_type<int, Precision::Pointer>,
-                        v_type<int, Precision::AccessorReduced>>
+                        v_type<int, Precision::AccessorReduced>,
+                        v_type<double, Precision::Frsz2_16>,
+                        v_type<double, Precision::Frsz2_32>>
         type_list;
-    constexpr val_list<i_type, 4> outer_list;
-    constexpr val_list<i_type, 8, 16> inner_list;
+    constexpr val_list<i_type, 1, 4> outer_list;
+    constexpr val_list<i_type, 2, 4, 8, 16> inner_list;
     constexpr val_list<i_type, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
                        15, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 512>
         compute_list;
@@ -150,6 +162,7 @@ int main() {
                         v_type<double, Precision::AccessorKeep>,
                         v_type<double, Precision::AccessorReduced>,
                         v_type<double, Precision::AccessorPosit>,
+                        v_type<double, Precision::Frsz2_16>,
                         v_type<double, Precision::Frsz2_32>,
                         v_type<float, Precision::Pointer>,
                         v_type<float, Precision::AccessorKeep>,

@@ -10,6 +10,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 plot_info = {}
 
 plot_folder = "./plots/"
+filt_lambda_12 = lambda x : int(x[i_dict["oiters"]]) == 1 and int(x[i_dict["iiters"]]) == 2
 filt_lambda_48 = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 8
 filt_lambda_18 = lambda x : int(x[i_dict["oiters"]]) == 1 and int(x[i_dict["iiters"]]) == 8
 filt_lambda_416 = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 16
@@ -44,9 +45,9 @@ plot_info["a100"] = {
         "peak_fp16": 77970.0,
         "peak_bw": 1555.0,
         #"file": "../20201125_A100_roofline_d3.csv",
-        "file": "../20230503_1830_A100_guyot_roofline.csv",
+        "file": "../20230517_0900_A100_guyot_frsz2.csv",
         "prefix": "a100_",
-        "filter": filt_lambda_48,
+        "filter": filt_lambda_12,
         }
 plot_info["v100"] = {
         "peak_fp64": 7800.0,
@@ -226,7 +227,7 @@ LineWidth = 1
 MarkerSize = 8
 
 
-precisions_to_print = ("double", "float", "Ac<3, d, d>", "Ac<3, d, f>", "Ac<3, d, p32>", "Ac<3, f, p16>", "frsz2-32")
+precisions_to_print = ("double", "float", "Ac<3, d, d>", "Ac<3, d, f>", "Ac<3, d, p32>", "Ac<3, f, p16>", "frsz2-16", "frsz2-32")
 precision_details = {
         "double": {
             "marker": 'X',
@@ -257,6 +258,11 @@ precision_details = {
             "marker": 'o',
             "color": myblack,
             "label": "Accessor<fp32, posit16>",
+            },
+        "frsz2-16": {
+            "marker": 'v',
+            "color": mybrown,
+            "label": "frsz2-16",
             },
         "frsz2-32": {
             "marker": 'd',
