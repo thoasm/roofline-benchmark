@@ -210,7 +210,7 @@ __global__ void benchmark_accessor_kernel(Accessor acc, const Input input)
 // Specialized for FRSZ compression
 template <std::int32_t block_size, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters,
-          typename FrszCompressor, int blocks_per_tb>
+          typename FrszCompressor>
 __global__ void benchmark_frsz_kernel(
     std::uint8_t* __restrict__ data,
     const typename FrszCompressor::fp_type input, std::size_t num_elems)
@@ -220,9 +220,9 @@ __global__ void benchmark_frsz_kernel(
     static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
     static_assert(compute_iters >= 0,
                   "compute_iters must be positive or zero!");
-    static_assert(
-        block_size == blocks_per_tb * FrszCompressor::max_exp_block_size,
-        "Block size must be blocks_per_tb * max_exp_block_size!");
+    // static_assert(
+    //     block_size == blocks_per_tb * FrszCompressor::max_exp_block_size,
+    //     "Block size must be blocks_per_tb * max_exp_block_size!");
     const std::int64_t idx =
         blockIdx.x * block_size * inner_work_iters + threadIdx.x;
 
@@ -241,11 +241,9 @@ __global__ void benchmark_frsz_kernel(
         // #pragma unroll
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
             // reg[i] = data[idx + i * inner_stride + o * outer_stride];
-            reg[i] = FrszCompressor::decompress_gpu_function<blocks_per_tb>(
-                (blockIdx.x * block_size * inner_work_iters + i * inner_stride +
-                 o * outer_stride) /
-                    FrszCompressor::max_exp_block_size,
-                total_elements, data);
+            reg[i] = FrszCompressor::decompress_gpu_function(
+                (idx + i * inner_stride + o * outer_stride), total_elements,
+                data);
 #pragma unroll 128
             for (std::int32_t c = 0; c < compute_iters; ++c) {
                 reg[i] = reg[i] * reg[i] + input;

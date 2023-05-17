@@ -248,7 +248,7 @@ kernel_runtime_info run_benchmark_frsz(
     timer t;
     t.start();
     benchmark_frsz_kernel<block_size, outer_work_iters, inner_work_iters,
-                          compute_iters, FrszCompressor, blocks_per_tb>
+                          compute_iters, FrszCompressor>
         <<<grid_, block_>>>(data_ptr, input, num_elems);
     t.stop();
     auto kernel_info =

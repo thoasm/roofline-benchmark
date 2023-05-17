@@ -11,6 +11,7 @@ plot_info = {}
 
 plot_folder = "./plots/"
 filt_lambda_12 = lambda x : int(x[i_dict["oiters"]]) == 1 and int(x[i_dict["iiters"]]) == 2
+filt_lambda_14 = lambda x : int(x[i_dict["oiters"]]) == 1 and int(x[i_dict["iiters"]]) == 4
 filt_lambda_48 = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 8
 filt_lambda_18 = lambda x : int(x[i_dict["oiters"]]) == 1 and int(x[i_dict["iiters"]]) == 8
 filt_lambda_416 = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 16
@@ -45,9 +46,10 @@ plot_info["a100"] = {
         "peak_fp16": 77970.0,
         "peak_bw": 1555.0,
         #"file": "../20201125_A100_roofline_d3.csv",
-        "file": "../20230517_0900_A100_guyot_frsz2.csv",
+        #"file": "../20230517_0900_A100_guyot_frsz2.csv",
+        "file": "../20230517_1030_A100_guyot_frsz2.csv",
         "prefix": "a100_",
-        "filter": filt_lambda_12,
+        "filter": filt_lambda_14,
         }
 plot_info["v100"] = {
         "peak_fp64": 7800.0,
