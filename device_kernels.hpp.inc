@@ -81,7 +81,7 @@ __global__ void benchmark_kernel(T* __restrict__ data, const T input)
     //*
     const std::int64_t idx =
         blockIdx.x * block_size * inner_work_iters + threadIdx.x;
-    const std::int64_t inner_stride = block_size;
+    constexpr std::int64_t inner_stride = block_size;
     const std::int64_t outer_stride = gridDim.x * block_size * inner_work_iters;
     /*/
     const std::int64_t idx = blockIdx.x * block_size + threadIdx.x;
@@ -138,7 +138,72 @@ __global__ void benchmark_kernel(T* __restrict__ data, const T input)
 template <std::int32_t block_size, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters,
           typename Input, typename Accessor>
-__global__ void benchmark_accessor_kernel(Accessor acc, const Input input)
+__global__ void benchmark_accessor_1d_kernel(Accessor acc, const Input input)
+{
+    static_assert(block_size > 0, "block_size must be positive!");
+    static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
+    static_assert(compute_iters >= 0,
+                  "compute_iters must be positive or zero!");
+    static_assert(Accessor::dimensionality == 1, "Accessor must be 1D!");
+
+    using value_type = typename Accessor::accessor::arithmetic_type;
+    static_assert(std::is_same<value_type, Input>::value, "Types must match!");
+    const std::int64_t idx =
+        blockIdx.x * block_size * inner_work_iters + threadIdx.x;
+    constexpr std::int64_t inner_stride = block_size;
+    const std::int64_t outer_stride = gridDim.x * block_size * inner_work_iters;
+    // const auto input = static_cast<value_type>(i_input);
+
+#if USE_ARRAY
+    static_assert(inner_work_iters % 2 == 0,
+                  "inner_work_iters must be dividable by 2!");
+    value_type reg[inner_work_iters];
+    for (std::int32_t o = 0; o < outer_work_iters; ++o) {
+#pragma unroll
+        for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+            reg[i] = acc(idx + i * inner_stride + o * outer_stride);
+#pragma unroll 128
+            for (std::int32_t c = 0; c < compute_iters; ++c) {
+                reg[i] = reg[i] * reg[i] + input;
+            }
+        }
+        value_type reduced{};
+#pragma unroll
+        for (std::int32_t i = 0; i < inner_work_iters; i += 2) {
+            reduced = reg[i] * reg[i + 1] + reduced;
+        }
+        // Intentionally is never true
+        if (reduced == static_cast<value_type>(-1)) {
+            acc(idx + o * outer_stride) = reduced;
+        }
+    }
+
+#else
+    value_type reg{1};
+    for (std::int32_t o = 0; o < outer_work_iters; ++o) {
+#pragma unroll
+        for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+            const value_type mem =
+                acc(idx + i * inner_stride + o * outer_stride);
+            reg = mem * input + reg;
+#pragma unroll 128
+            for (std::int32_t c = 0; c < compute_iters; ++c) {
+                reg = reg * reg + input;
+            }
+        }
+        // Intentionally is never true
+        if (reg == static_cast<value_type>(-1)) {
+            acc(idx + o * outer_stride) = reg;
+        }
+    }
+#endif  // USE_ARRAY
+}
+
+// Specialization for Accessor
+template <std::int32_t block_size, std::int32_t outer_work_iters,
+          std::int32_t inner_work_iters, std::int32_t compute_iters,
+          typename Input, typename Accessor>
+__global__ void benchmark_accessor_3d_kernel(Accessor acc, const Input input)
 {
     static_assert(block_size > 0, "block_size must be positive!");
     static_assert(outer_work_iters > 0, "outer_work_iters must be positive!");
@@ -151,8 +216,6 @@ __global__ void benchmark_accessor_kernel(Accessor acc, const Input input)
     //*
     const std::int64_t idx =
         blockIdx.x * block_size * inner_work_iters + threadIdx.x;
-    // const std::int64_t outer_stride =
-    //  gridDim.x * block_size * inner_work_iters;
     /*/
     const std::int64_t idx = blockIdx.x * block_size + threadIdx.x;
     //*/
@@ -166,7 +229,6 @@ __global__ void benchmark_accessor_kernel(Accessor acc, const Input input)
 #pragma unroll
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
             reg[i] = acc(o, i, idx);
-            // reg[i] = acc(idx + i * inner_stride + o * outer_stride);
 #pragma unroll 128
             for (std::int32_t c = 0; c < compute_iters; ++c) {
                 reg[i] = reg[i] * reg[i] + input;
@@ -180,7 +242,6 @@ __global__ void benchmark_accessor_kernel(Accessor acc, const Input input)
         // Intentionally is never true
         if (reduced == static_cast<value_type>(-1)) {
             acc(o, 0, idx) = reduced;
-            // acc(idx + o * outer_stride) = reduced;
         }
     }
 
@@ -189,8 +250,6 @@ __global__ void benchmark_accessor_kernel(Accessor acc, const Input input)
     for (std::int32_t o = 0; o < outer_work_iters; ++o) {
 #pragma unroll
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
-            // const value_type mem =
-            //    acc(idx + i * inner_stride + o * outer_stride);
             const value_type mem = acc(o, i, idx);
             reg = mem * input + reg;
 #pragma unroll 128
@@ -201,7 +260,6 @@ __global__ void benchmark_accessor_kernel(Accessor acc, const Input input)
         // Intentionally is never true
         if (reg == static_cast<value_type>(-1)) {
             acc(o, 0, idx) = reg;
-            // acc(idx + o * outer_stride) = reg;
         }
     }
 #endif  // USE_ARRAY

@@ -5,7 +5,7 @@
 #include <accessor/reduced_row_major.hpp>
 
 //
-//#include <immintrin.h>
+// #include <immintrin.h>
 
 #include <array>
 #include <cinttypes>
@@ -21,10 +21,10 @@
 //
 
 #define READ_WRITE_BENCHMARK true
-//#define READ_WRITE_BENCHMARK false
+// #define READ_WRITE_BENCHMARK false
 
 #define PARALLEL_FOR_SCHEDULE schedule(static, 1024)
-//#define PARALLEL_FOR_SCHEDULE
+// #define PARALLEL_FOR_SCHEDULE
 constexpr std::int32_t num_parallel_computations{4};
 
 //
@@ -82,8 +82,8 @@ kernel_runtime_info run_benchmark_hand(const std::size_t num_elems, T* data,
 {
     const std::int64_t parallel_iters =
         ceildiv(num_elems, inner_work_iters * outer_work_iters);
-    const std::int64_t outer_stride = inner_work_iters;
-    const std::int64_t parallel_stride = outer_stride * outer_work_iters;
+    constexpr std::int64_t outer_stride = inner_work_iters;
+    constexpr std::int64_t parallel_stride = outer_stride * outer_work_iters;
 
     timer t;
 #if READ_WRITE_BENCHMARK
@@ -177,37 +177,57 @@ kernel_runtime_info run_benchmark_hand(const std::size_t num_elems, T* data,
 #endif
 }
 
-template <typename ArType, typename StType, std::int32_t outer_work_iters,
-          std::int32_t inner_work_iters, std::int32_t compute_iters,
-          std::size_t dimensionality>
-kernel_runtime_info run_benchmark_accessor(const std::size_t num_elems,
-                                           StType* data_ptr, const ArType input)
+template <int outer_work_iters, int inner_work_iters, int compute_iters,
+          typename Accessor, typename Input>
+kernel_runtime_info benchmark_accessor_1d_rw(const std::size_t num_elems,
+                                             const std::int64_t parallel_iters,
+                                             Accessor acc, const Input input)
 {
-    const std::int64_t parallel_iters =
-        ceildiv(num_elems, inner_work_iters * outer_work_iters);
-
-    //*
-    static_assert(dimensionality == 3, "Dimensionality must be 3!");
-    std::array<gko::acc::size_type, dimensionality> size{
-        {static_cast<gko::acc::size_type>(parallel_iters), outer_work_iters,
-         inner_work_iters}};
-    /*/
-    static_assert(dimensionality == 1, "Dimensionality must be 1!");
-    std::array<gko::acc::size_type, dimensionality> size{{outer_work_iters *
-    inner_work_iters * total_threads}};
-    //*/
-    using accessor =
-        gko::acc::reduced_row_major<dimensionality, ArType, StType>;
-    using range = gko::acc::range<accessor>;
-    auto acc = range(size, data_ptr);
-    timer t;
-
-#if READ_WRITE_BENCHMARK
-    t.start();
+    constexpr std::int64_t outer_stride = inner_work_iters;
+    constexpr std::int64_t parallel_stride = outer_stride * outer_work_iters;
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE
     for (std::int64_t pi = 0; pi < parallel_iters; ++pi) {
         for (std::int32_t o = 0; o < outer_work_iters; ++o) {
-            std::array<ArType, num_parallel_computations> reg{};
+            std::array<ArType, num_parallel_computations> reg;
+            for (std::int32_t i = 0; i < inner_work_iters; ++i) {
+                reg[0] = acc(pi * parallel_stride + o * outer_stride + i);
+                for (std::int32_t nc = 1; nc < num_parallel_computations;
+                     ++nc) {
+                    reg[nc] = reg[0] + nc * input;
+                }
+                for (std::int32_t c = 0; c < compute_iters; ++c) {
+                    for (std::int32_t nc = 0; nc < num_parallel_computations;
+                         ++nc) {
+                        reg[nc] = reg[nc] * reg[nc] + input;
+                    }
+                }
+                for (std::int32_t nc = num_parallel_computations - 1; nc > 0;
+                     --nc) {
+                    reg[nc - 1] = reg[nc - 1] * reg[nc] + input;
+                }
+                acc(pi * parallel_stride + o * outer_stride + i) = reg[0];
+            }
+        }
+    }
+    return {2 * num_elems * sizeof(StType),
+            num_elems * (num_parallel_computations *
+                             static_cast<std::size_t>(compute_iters) * 2  // FMA
+                         + num_parallel_computations - 1        // + nc*input
+                         + (num_parallel_computations - 1) * 2  // FMA reduce
+                         ),
+            0.};
+}
+
+template <int outer_work_iters, int inner_work_iters, int compute_iters,
+          typename Accessor, typename Input>
+kernel_runtime_info benchmark_accessor_3d_rw(const std::size_t num_elems,
+                                             const std::int64_t parallel_iters,
+                                             Accessor acc, const Input input)
+{
+#pragma omp parallel for PARALLEL_FOR_SCHEDULE
+    for (std::int64_t pi = 0; pi < parallel_iters; ++pi) {
+        for (std::int32_t o = 0; o < outer_work_iters; ++o) {
+            std::array<ArType, num_parallel_computations> reg;
             for (std::int32_t i = 0; i < inner_work_iters; ++i) {
                 reg[0] = acc(pi, o, i);
                 for (std::int32_t nc = 1; nc < num_parallel_computations;
@@ -228,14 +248,63 @@ kernel_runtime_info run_benchmark_accessor(const std::size_t num_elems,
             }
         }
     }
-    t.stop();
     return {2 * num_elems * sizeof(StType),
             num_elems * (num_parallel_computations *
                              static_cast<std::size_t>(compute_iters) * 2  // FMA
                          + num_parallel_computations - 1        // + nc*input
                          + (num_parallel_computations - 1) * 2  // FMA reduce
                          ),
-            t.get_time()};
+            0.};
+}
+
+template <typename ArType, typename StType, std::int32_t outer_work_iters,
+          std::int32_t inner_work_iters, std::int32_t compute_iters,
+          std::size_t dimensionality>
+kernel_runtime_info run_benchmark_accessor(const std::size_t num_elems,
+                                           StType* data_ptr, const ArType input)
+{
+    const std::int64_t parallel_iters =
+        ceildiv(num_elems, inner_work_iters * outer_work_iters);
+
+    //*
+    static_assert(dimensionality == 1 || dimensionality == 3,
+                  "Dimensionality must be 1 or 3!");
+    timer t;
+
+#if READ_WRITE_BENCHMARK
+    if (dimensionality == 1) {
+        std::array<gko::acc::size_type, 1> size{{num_elems}};
+        using accessor = gko::acc::reduced_row_major<1, ArType, StType>;
+        using range = gko::acc::range<accessor>;
+        auto acc = range(size, data_ptr);
+
+        t.start();
+        auto result = benchmark_accessor_1d_rw<outer_work_iters,
+                                               inner_work_iters, compute_iters>(
+            num_elems, parallel_iters, acc, input);
+        t.stop();
+        result.runtime_ms = t.get_time();
+        return result;
+    } else if (dimensionality == 3) {
+        std::array<gko::acc::size_type, 3> size{
+            {static_cast<gko::acc::size_type>(parallel_iters), outer_work_iters,
+             inner_work_iters}};
+        using accessor = gko::acc::reduced_row_major<3, ArType, StType>;
+        using range = gko::acc::range<accessor>;
+        auto acc = range(size, data_ptr);
+
+        t.start();
+        auto result = benchmark_accessor_3d_rw<outer_work_iters,
+                                               inner_work_iters, compute_iters>(
+            num_elems, parallel_iters, acc, input);
+        t.stop();
+        result.runtime_ms = t.get_time();
+        return result;
+    } else {
+        throw std::invalid_argument(
+            std::string("Invalid dimensionality value! ") +
+            std::to_string(dimensionality) + " is not supported!");
+    }
 #else
     t.start();
 #pragma omp parallel for PARALLEL_FOR_SCHEDULE

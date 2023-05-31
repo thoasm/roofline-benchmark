@@ -198,32 +198,52 @@ kernel_runtime_info run_benchmark_accessor(std::size_t num_elems,
     //                     block_.z * grid_.x * grid_.y * grid_.z;
     auto total_threads = static_cast<gko::acc::size_type>(block_.x) * grid_.x;
 
-    //*
-    static_assert(dimensionality == 3, "Dimensionality must be 3!");
-    std::array<gko::acc::size_type, dimensionality> size{
-        {outer_work_iters, inner_work_iters, total_threads * inner_work_iters}};
-    std::array<gko::acc::size_type, dimensionality - 1> stride{
-        static_cast<gko::acc::size_type>(grid_.x) * block_.x * inner_work_iters,
-        static_cast<gko::acc::size_type>(block_.x)};
-    /*/
-    static_assert(dimensionality == 1, "Dimensionality must be 1!");
-    std::array<gko::acc::size_type, dimensionality> size{{outer_work_iters *
-    inner_work_iters * total_threads}};
-    //*/
-    using accessor =
-        gko::acc::reduced_row_major<dimensionality, ArType, StType>;
-    using range = gko::acc::range<accessor>;
-    auto acc = range(size, data_ptr, stride);
+    static_assert(dimensionality == 1 || dimensionality == 3,
+                  "Dimensionality must be 1 or 3!");
+    if (dimensionality == 1) {
+        std::array<gko::acc::size_type, dimensionality> size{{num_elems}};
+        std::array<gko::acc::size_type, dimensionality - 1> stride{};
+        using accessor =
+            gko::acc::reduced_row_major<dimensionality, ArType, StType>;
+        using range = gko::acc::range<accessor>;
+        auto acc = range(size, data_ptr, stride);
 
-    timer t;
-    t.start();
-    benchmark_accessor_kernel<default_block_size, outer_work_iters,
-                              inner_work_iters, compute_iters, ArType, range>
-        <<<grid_, block_>>>(acc, input);
-    t.stop();
-    auto kernel_info = get_kernel_info<outer_work_iters, inner_work_iters,
-                                       compute_iters, StType>(num_elems);
-    return {kernel_info.bytes, kernel_info.comps, t.get_time()};
+        timer t;
+        t.start();
+        benchmark_accessor_1d_kernel<default_block_size, outer_work_iters,
+                                     inner_work_iters, compute_iters, ArType,
+                                     range><<<grid_, block_>>>(acc, input);
+        t.stop();
+        auto kernel_info = get_kernel_info<outer_work_iters, inner_work_iters,
+                                           compute_iters, StType>(num_elems);
+        return {kernel_info.bytes, kernel_info.comps, t.get_time()};
+    } else if (dimensionality == 3) {
+        std::array<gko::acc::size_type, dimensionality> size{
+            {outer_work_iters, inner_work_iters,
+             total_threads * inner_work_iters}};
+        std::array<gko::acc::size_type, dimensionality - 1> stride{
+            static_cast<gko::acc::size_type>(grid_.x) * block_.x *
+                inner_work_iters,
+            static_cast<gko::acc::size_type>(block_.x)};
+        using accessor =
+            gko::acc::reduced_row_major<dimensionality, ArType, StType>;
+        using range = gko::acc::range<accessor>;
+        auto acc = range(size, data_ptr, stride);
+
+        timer t;
+        t.start();
+        benchmark_accessor_3d_kernel<default_block_size, outer_work_iters,
+                                     inner_work_iters, compute_iters, ArType,
+                                     range><<<grid_, block_>>>(acc, input);
+        t.stop();
+        auto kernel_info = get_kernel_info<outer_work_iters, inner_work_iters,
+                                           compute_iters, StType>(num_elems);
+        return {kernel_info.bytes, kernel_info.comps, t.get_time()};
+    } else {
+        throw std::invalid_argument(
+            std::string("Invalid dimensionality value! ") +
+            std::to_string(dimensionality) + " is not supported!");
+    }
 }
 
 template <typename FrszCompressor, std::int32_t outer_work_iters,

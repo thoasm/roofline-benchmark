@@ -135,7 +135,7 @@ int main()
 {
     using i_type = std::int32_t;
 
-    //*
+    /*
     constexpr std::size_t num_elems = 256 * 1024 * 1024;
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
@@ -159,18 +159,19 @@ int main()
     // This is a very small list for debugging purposes
     constexpr std::size_t num_elems = 32 * 1024 * 1024;
     constexpr type_list<v_type<double, Precision::Pointer>,
-                        v_type<double, Precision::AccessorKeep>,
-                        v_type<double, Precision::AccessorReduced>,
-                        v_type<double, Precision::AccessorPosit>,
+                        // v_type<double, Precision::AccessorKeep>,
+                        // v_type<double, Precision::AccessorReduced>,
+                        // v_type<double, Precision::AccessorPosit>,
                         v_type<double, Precision::Frsz2_16>,
-                        v_type<double, Precision::Frsz2_32>,
-                        v_type<float, Precision::Pointer>,
-                        v_type<float, Precision::AccessorKeep>,
-                        v_type<float, Precision::AccessorPosit>>
+                        v_type<double, Precision::Frsz2_32>
+                        // , v_type<float, Precision::Pointer>,
+                        // v_type<float, Precision::AccessorKeep>,
+                        // v_type<float, Precision::AccessorPosit>
+                        >
         type_list;
-    constexpr val_list<i_type, 4> outer_list;
-    constexpr val_list<i_type, 8> inner_list;
-    constexpr val_list<i_type, 0, 1, 32, 128> compute_list;
+    constexpr val_list<i_type, 1> outer_list;
+    constexpr val_list<i_type, 2> inner_list;
+    constexpr val_list<i_type, 0> compute_list;
     //*/
 
     const unsigned seed{42};

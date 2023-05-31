@@ -10,6 +10,8 @@
 #include <array>
 #include <cinttypes>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 #include <type_traits>
 
 #include "../benchmark_info.hpp"
@@ -84,34 +86,56 @@ kernel_runtime_info run_benchmark_accessor(std::size_t num_elems,
     auto total_threads = static_cast<gko::acc::size_type>(block_.x) * grid_.x;
 
     //*
-    static_assert(dimensionality == 3, "Dimensionality must be 3!");
-    std::array<gko::acc::size_type, dimensionality> size{
-        {outer_work_iters, inner_work_iters, total_threads}};
-    std::array<gko::acc::size_type, dimensionality - 1> stride{
-        static_cast<gko::acc::size_type>(grid_.x) * block_.x * inner_work_iters,
-        static_cast<gko::acc::size_type>(block_.x)};
-    /*/
-    static_assert(dimensionality == 1, "Dimensionality must be 1!");
-    std::array<gko::acc::size_type, dimensionality> size{{outer_work_iters *
-    inner_work_iters * total_threads}};
-    //*/
-    using accessor =
-        gko::acc::reduced_row_major<dimensionality, ArType, StType>;
-    using range = gko::acc::range<accessor>;
-    auto acc = range(size, data_ptr, stride);
+    static_assert(dimensionality == 1 || dimensionality == 3,
+                  "Dimensionality must be 1 or 3!");
+    if (dimensionality == 1) {
+        std::array<gko::acc::size_type, 1> size{{num_elems}};
+        std::array<gko::acc::size_type, 1 - 1> stride{};
+        using accessor = gko::acc::reduced_row_major<1, ArType, StType>;
+        using range = gko::acc::range<accessor>;
+        auto acc = range(size, data_ptr, stride);
 
-    timer t;
-    t.start();
-    hipLaunchKernelGGL(
-        HIP_KERNEL_NAME(
-            benchmark_accessor_kernel<default_block_size, outer_work_iters,
-                                      inner_work_iters, compute_iters, ArType,
-                                      range>),
-        grid_, block_, 0, 0, acc, input);
-    t.stop();
-    auto kernel_info = get_kernel_info<outer_work_iters, inner_work_iters,
-                                       compute_iters, StType>(num_elems);
-    return {kernel_info.bytes, kernel_info.comps, t.get_time()};
+        timer t;
+        t.start();
+        hipLaunchKernelGGL(
+            HIP_KERNEL_NAME(
+                benchmark_accessor_1d_kernel<default_block_size,
+                                             outer_work_iters, inner_work_iters,
+                                             compute_iters, ArType, range>),
+            grid_, block_, 0, 0, acc, input);
+        t.stop();
+        auto kernel_info = get_kernel_info<outer_work_iters, inner_work_iters,
+                                           compute_iters, StType>(num_elems);
+        return {kernel_info.bytes, kernel_info.comps, t.get_time()};
+    } else if (dimensionality == 3) {  // dimensionality == 3
+
+        std::array<gko::acc::size_type, 3> size{
+            {outer_work_iters, inner_work_iters, total_threads}};
+        std::array<gko::acc::size_type, 3 - 1> stride{
+            static_cast<gko::acc::size_type>(grid_.x) * block_.x *
+                inner_work_iters,
+            static_cast<gko::acc::size_type>(block_.x)};
+        using accessor = gko::acc::reduced_row_major<3, ArType, StType>;
+        using range = gko::acc::range<accessor>;
+        auto acc = range(size, data_ptr, stride);
+
+        timer t;
+        t.start();
+        hipLaunchKernelGGL(
+            HIP_KERNEL_NAME(
+                benchmark_accessor_kernel<default_block_size, outer_work_iters,
+                                          inner_work_iters, compute_iters,
+                                          ArType, range>),
+            grid_, block_, 0, 0, acc, input);
+        t.stop();
+        auto kernel_info = get_kernel_info<outer_work_iters, inner_work_iters,
+                                           compute_iters, StType>(num_elems);
+        return {kernel_info.bytes, kernel_info.comps, t.get_time()};
+    } else {
+        throw std::invalid_argument(
+            std::string("Invalid dimensionality value! ") +
+            std::to_string(dimensionality) + " is not supported!");
+    }
 }
 
 #endif  // BENCHMARK_CUDA_CUH_

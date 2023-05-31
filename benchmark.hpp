@@ -30,11 +30,17 @@ struct type_to_string {
     static const char* get_short() { return typeid(T).name(); }
 };
 
-#define SPECIALIZE_TYPE_TO_STRING(type_, str_, sh_str_)    \
-    template <>                                            \
-    struct type_to_string<type_> {                         \
-        static const char* get() { return str_; }          \
-        static const char* get_short() { return sh_str_; } \
+#define SPECIALIZE_TYPE_TO_STRING(type_, str_, sh_str_) \
+    template <>                                         \
+    struct type_to_string<type_> {                      \
+        static const char* get()                        \
+        {                                               \
+            return str_;                                \
+        }                                               \
+        static const char* get_short()                  \
+        {                                               \
+            return sh_str_;                             \
+        }                                               \
     }
 
 SPECIALIZE_TYPE_TO_STRING(float, "float", "f");
@@ -116,7 +122,7 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
 
     const auto input = static_cast<T>(seed);
 
-    constexpr std::size_t dimensionality{3};
+    constexpr std::size_t dimensionality{1};
     auto run_set_data = [&]() {
         return set_data<T>(num_elems, data_ptr, seed, rng);
     };
