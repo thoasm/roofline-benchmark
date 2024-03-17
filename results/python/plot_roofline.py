@@ -40,6 +40,15 @@ plot_info["mi100"] = {
         "prefix": "mi100_",
         "filter": filt_lambda_18,
         }
+plot_info["h100"] = {
+        "peak_fp64": 26000.0,
+        "peak_fp32": 51000.0,
+        "peak_fp16": 1513000.0,
+        "peak_bw": 2000.0,
+        "file": "../2024-03-15_H100_hexane.csv",
+        "prefix": "h100_",
+        "filter": filt_lambda_48,
+        }
 plot_info["a100"] = {
         "peak_fp64": 9746.0,
         "peak_fp32": 19490.0,
@@ -125,6 +134,7 @@ plot_info["arm_xavier"] = {
 plot_list = [
         "mi100",
         "radeon7",
+        "h100",
         "a100",
         "v100",
         "bwuni-rw",
@@ -331,6 +341,7 @@ def add_table(ax, plot_data, value_key, colLabel, value_lambda):
             continue
         data = plot_data[prec]
         if prec in precision_details:
+            print("{}: key: {}; data[key] = {}".format(prec, value_key, data[value_key]))
             label = precision_details[prec]["label"]
             value = value_lambda(data[value_key])
             table_row_labels.append(label)
@@ -426,7 +437,7 @@ if __name__ == "__main__":
             ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
                     color=fp32_color, label="Peak fp32 performance")
 
-        add_table(ax, plot_data, "GOPS", "Peak GFLOP/s", lambda x: "{:,}".format(round(max(x))))
+        #add_table(ax, plot_data, "GOPS", "Peak GFLOP/s", lambda x: "{:,}".format(round(max(x))))
         ax.set_xlabel("Arithmetic Intensity [FLOP/Byte]")
         ax.set_ylabel("Compute Performance [GFLOP/s]")
         #ax.legend(loc="best")
