@@ -1,7 +1,6 @@
-cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 project(roofline_benchmark LANGUAGES CXX)
 
-option(ROOFLINE_FRSZ "Build the FRSZ benchmark" OFF)
 option(ROOFLINE_CUDA "Build the CUDA benchmark" OFF)
 option(ROOFLINE_HIP "Build the HIP benchmark" OFF)
 option(ROOFLINE_CPU "Build the CPU benchmark" OFF)
@@ -22,14 +21,11 @@ function(roofline_apply_default_target_settings target)
 endfunction()
 
 
-if (ROOFLINE_FRSZ)
-    find_package(frsz REQUIRED)
-endif()
-
 if (ROOFLINE_CPU)
     find_package(OpenMP REQUIRED)
     set(target "roofline_cpu")
     add_executable("${target}")
+    target_link_libraries("${target}" PUBLIC OpenMP::OpenMP_CXX)
     roofline_apply_default_target_settings("${target}")
     target_compile_definitions("${target}" PRIVATE ROOFLINE_CPU_CODE)
 
@@ -44,10 +40,6 @@ if (ROOFLINE_CPU)
         -march=native
         -Wno-unused-parameter
         )
-    
-    if (ROOFLINE_FRSZ)
-        target_link_libraries("${target}" PRIVATE OpenMP::OpenMP_CXX frsz::frsz)
-    endif()
 endif()
 
 if (ROOFLINE_CUDA)
@@ -81,10 +73,6 @@ if (ROOFLINE_CUDA)
     #"${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
         )
 
-    if (ROOFLINE_FRSZ)
-        target_link_libraries(${target} PRIVATE frsz::frsz)
-    endif()
-
 
     # Command to get PTX code:
     #nvcc \
@@ -95,44 +83,12 @@ if (ROOFLINE_CUDA)
 endif()
 
 if (ROOFLINE_HIP)
-    # setting the default flags like CMAKE_{LANG}_FLAGS_{TYPE}
-    # the setting is copied from the default CMAKE_CXX_FLAGS_{TYPE}
-    # NEEDS TO BE IN FRONT OF find_package(HIP)
-    set(HIP_HIPCC_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}" CACHE STRING "Flags used by the HIPCC compiler during DEBUG builds")
-    set(HIP_HIPCC_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL}" CACHE STRING "Flags used by the HIPCC compiler during MINSIZEREL builds")
-    set(HIP_HIPCC_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING "Flags used by the HIPCC compiler during RELEASE builds")
-    set(HIP_HIPCC_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}" CACHE STRING "Flags used by the HIPCC compiler during RELWITHDEBINFO builds")
-    
-
-    # Modified version of: https://github.com/ROCm-Developer-Tools/HIP/blob/master/samples/2_Cookbook/12_cmake_hip_add_executable/CMakeLists.txt
-    if(NOT DEFINED ROCM_PATH)
-        if(NOT DEFINED ENV{ROCM_PATH})
-            set(ROCM_PATH "/opt/rocm" CACHE PATH "Path to which ROCM has been installed")
-        else()
-            set(ROCM_PATH $ENV{HIP_PATH} CACHE PATH "Path to which ROCM has been installed")
-        endif()
-    endif()
-    if(NOT DEFINED HIP_PATH)
-        if(NOT DEFINED ENV{HIP_PATH})
-            set(HIP_PATH "${ROCM_PATH}/hip" CACHE PATH "Path to which HIP has been installed")
-        else()
-            set(HIP_PATH $ENV{ROCM_PATH} CACHE PATH "Path to which HIP has been installed")
-        endif()
-    endif()
-    if(NOT DEFINED HIP_CLANG_PATH)
-        if(NOT DEFINED ENV{HIP_CLANG_PATH})
-            set(HIP_CLANG_PATH "${ROCM_PATH}/llvm/bin" CACHE PATH "Path to which HIP compatible clang binaries have been installed")
-        else()
-            set(HIP_CLANG_PATH $ENV{HIP_CLANG_PATH} CACHE PATH "Path to which HIP compatible clang binaries have been installed")
-        endif()
-    endif()
-
-    set(ROOFLINE_HIP_CLANG_COMPILER_FLAGS "" CACHE STRING "Set the required HIP CLANG compiler flags.")
-    list(APPEND CMAKE_MODULE_PATH "${HIP_PATH}/cmake")
-    #list (APPEND CMAKE_PREFIX_PATH "${ROCM_PATH}" "${HIP_PATH}")
-
     set(GPU_TARGETS "gfx900;gfx906;gfx908" CACHE STRING "GPU targets to compile for")
+    enable_language(HIP)
     find_package(HIP REQUIRED)
+    find_package(hiprand REQUIRED)
+    find_package(rocthrust REQUIRED)
+    find_package(rocrand REQUIRED)
     if(HIP_FOUND)
         message(STATUS "Found HIP: " ${HIP_VERSION})
     else()
@@ -155,17 +111,10 @@ if (ROOFLINE_HIP)
     set(MY_HCC_OPTIONS)
     set(MY_NVCC_OPTIONS "--expt-relaxed-constexpr")
 
-    set_source_files_properties(${MY_SOURCE_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
-    #For older HIP versions (< 3.5)
-    #hip_add_executable(${MY_TARGET_NAME} ${MY_SOURCE_FILES}
-    #    HIPCC_OPTIONS ${MY_HIPCC_OPTIONS}
-    #    HCC_OPTIONS ${MY_HCC_OPTIONS}
-    #    NVCC_OPTIONS ${MY_NVCC_OPTIONS})
-    hip_add_executable(${MY_TARGET_NAME} ${MY_SOURCE_FILES}
-        HIPCC_OPTIONS ${MY_HIPCC_OPTIONS}
-        HCC_OPTIONS ${MY_HCC_OPTIONS}
-	#CLANG_OPTIONS ${ROOFLINE_HIP_CLANG_COMPILER_FLAGS}
-        NVCC_OPTIONS ${MY_NVCC_OPTIONS})
+    #set_source_files_properties(${MY_SOURCE_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
+    set_source_files_properties(${MY_SOURCE_FILES} PROPERTIES LANGUAGE HIP)
+    add_executable(${MY_TARGET_NAME} ${MY_SOURCE_FILES})
+    target_link_libraries(${MY_TARGET_NAME} PRIVATE hip::host hip::hiprand roc::rocthrust roc::rocrand)
     #set_target_properties(hip::device PROPERTIES INTERFACE_COMPILE_OPTIONS "")
     #set_target_properties(hip::device PROPERTIES INTERFACE_LINK_LIBRARIES "hip::host")
     #target_link_libraries("${target}" hip::device)

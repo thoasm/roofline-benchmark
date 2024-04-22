@@ -1,5 +1,5 @@
-#ifndef EXEC_CUDA_CUH_
-#define EXEC_CUDA_CUH_
+#ifndef EXEC_HIP_HIP_HPP_
+#define EXEC_HIP_HIP_HPP_
 
 #include <hip/hip_runtime.h>
 
@@ -10,15 +10,20 @@
 #include <stdexcept>
 #include <vector>
 
+#include <hip/hip_runtime.h>
+#include <hiprand/hiprand.h>
 
-#define HIP_CALL(call)                                                    \
-    do {                                                                  \
-        auto err = call;                                                  \
-        if (err != hipSuccess) {                                          \
-            std::cerr << "Cuda error in file " << __FILE__                \
-                      << " L:" << __LINE__ << "; Error: " << err << '\n'; \
-            throw std::runtime_error("Bad HIP call!");                    \
-        }                                                                 \
+#include <hiprand/hiprand_kernel.h>
+
+
+#define HIP_CALL(call)                                                         \
+    do {                                                                       \
+        auto err = call;                                                       \
+        if (err != hipSuccess) {                                               \
+            std::cerr << "HIP error in file " << __FILE__ << " L:" << __LINE__ \
+                      << "; Error: " << err << '\n';                           \
+            throw std::runtime_error("Bad HIP call!");                         \
+        }                                                                      \
     } while (false)
 
 
@@ -179,16 +184,31 @@ private:
 
 class RandomNumberGenerator {
 public:
-    RandomNumberGenerator() {}
+    RandomNumberGenerator() : hiprand_{0} {}
 
-    void* get_memory() { return nullptr; }
+    hiprandState_t* get_memory() { return hiprand_.get(); }
 
-    void re_allocate(std::size_t) {}
+    void re_allocate(std::size_t num_elements)
+    {
+        hiprand_.re_allocate(num_elements);
+    }
 
-    void prepare_for(std::size_t) {}
+    // Returns true if a re-allocation was performed.
+    // If true is returned, the data needs to be re-initialized
+    bool prepare_for(std::size_t num_elements)
+    {
+        if (hiprand_.get_num_elems() < num_elements) {
+            this->re_allocate(num_elements);
+            return true;
+        }
+        return false;
+    }
 
-    std::size_t get_num_elems() const { return 0; }
+    std::size_t get_num_elems() const { return hiprand_.get_num_elems(); }
+
+private:
+    Memory<hiprandState_t> hiprand_;
 };
 
 
-#endif  // EXEC_CUDA_CUH_
+#endif  // EXEC_HIP_HIP_HPP_
