@@ -270,7 +270,7 @@ template <std::int32_t block_size, std::int32_t outer_work_iters,
           std::int32_t inner_work_iters, std::int32_t compute_iters,
           typename FrszCompressor>
 __global__ void benchmark_frsz_kernel(
-    std::uint8_t* __restrict__ data,
+    FrszCompressor frsz,
     const typename FrszCompressor::fp_type input, std::size_t num_elems)
 {
     using arithmetic_type = typename FrszCompressor::fp_type;
@@ -287,7 +287,7 @@ __global__ void benchmark_frsz_kernel(
     constexpr std::int64_t inner_stride = block_size;
     const std::int64_t outer_stride = gridDim.x * block_size * inner_work_iters;
 
-    const std::size_t total_elements =
+    [[maybe_unused]] const std::size_t total_elements =
         outer_stride * gridDim.x * block_size * inner_work_iters;
 
 #if USE_ARRAY
@@ -299,9 +299,8 @@ __global__ void benchmark_frsz_kernel(
         // #pragma unroll
         for (std::int32_t i = 0; i < inner_work_iters; ++i) {
             // reg[i] = data[idx + i * inner_stride + o * outer_stride];
-            reg[i] = FrszCompressor::decompress_gpu_function(
-                (idx + i * inner_stride + o * outer_stride), total_elements,
-                data);
+            reg[i] = frsz.decompress_gpu_element(
+                idx + i * inner_stride + o * outer_stride);
 #pragma unroll 128
             for (std::int32_t c = 0; c < compute_iters; ++c) {
                 reg[i] = reg[i] * reg[i] + input;
@@ -314,7 +313,7 @@ __global__ void benchmark_frsz_kernel(
         }
         // Intentionally is never true
         if (reduced == static_cast<arithmetic_type>(-1)) {
-            data[idx + o * outer_stride] = static_cast<std::uint8_t>(reduced);
+            frsz.get_compressed_data()[idx + o * outer_stride] = static_cast<std::uint8_t>(reduced);
         }
     }
 

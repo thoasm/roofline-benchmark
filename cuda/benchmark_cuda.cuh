@@ -14,10 +14,9 @@
 #include "../benchmark_info.hpp"
 #include "../device_kernels.hpp.inc"
 #include "../exec_helper.hpp"
-#include "frsz2.hpp"
 
 template <typename T>
-T get_random(curandState_t*)
+__device__ T get_random(curandState_t*)
 {
     static_assert(sizeof(T) > 0,
                   "This function is not implemented for the given type T.");
@@ -111,18 +110,15 @@ void set_data(std::size_t num_elems, T* data_ptr, unsigned seed,
 }
 
 template <std::int32_t block_size, typename FrszCompressor>
-__global__ void set_frsz2_data_random_kernel(std::size_t num_elems,
-                                             std::uint8_t* data_ptr,
+__global__ void set_frsz2_data_random_kernel(FrszCompressor frsz,
                                              const curandState_t* cstate)
 {
     auto cstate_elm = cstate[blockIdx.x * block_size + threadIdx.x];
 
-    for (std::int64_t block_idx = blockIdx.x;
-         block_idx * block_size < num_elems; block_idx += gridDim.x) {
-        FrszCompressor::compress_gpu_function(
-            block_idx,
-            get_random<typename FrszCompressor::fp_type>(&cstate_elm),
-            num_elems, data_ptr);
+    for (std::int64_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+         idx < frsz.get_total_elements(); idx += gridDim.x * blockDim.x) {
+        frsz.template compress_gpu_function<block_size>(
+            idx, get_random<typename FrszCompressor::fp_type>(&cstate_elm));
     }
 }
 
@@ -149,8 +145,10 @@ void set_frsz2_data(std::size_t num_elems, std::uint8_t* data_ptr,
             <<<grid_, block_>>>(num_cstate, rng.get_memory(), seed);
     }
 
+    FrszCompressor frsz(data_ptr, num_elems);
+
     set_frsz2_data_random_kernel<block_size, FrszCompressor>
-        <<<grid_, block_>>>(num_elems, data_ptr, rng.get_memory());
+        <<<grid_, block_>>>(frsz, rng.get_memory());
 }
 
 template <typename T, std::int32_t outer_work_iters,
@@ -201,10 +199,12 @@ kernel_runtime_info run_benchmark_accessor(std::size_t num_elems,
     static_assert(dimensionality == 1 || dimensionality == 3,
                   "Dimensionality must be 1 or 3!");
     if (dimensionality == 1) {
-        std::array<gko::acc::size_type, dimensionality> size{{num_elems}};
-        std::array<gko::acc::size_type, dimensionality - 1> stride{};
+        constexpr int local_dimensionality = 1;
+        std::array<gko::acc::size_type, local_dimensionality> size{
+            {static_cast<gko::acc::size_type>(num_elems)}};
+        std::array<gko::acc::size_type, local_dimensionality - 1> stride{};
         using accessor =
-            gko::acc::reduced_row_major<dimensionality, ArType, StType>;
+            gko::acc::reduced_row_major<local_dimensionality, ArType, StType>;
         using range = gko::acc::range<accessor>;
         auto acc = range(size, data_ptr, stride);
 
@@ -218,15 +218,16 @@ kernel_runtime_info run_benchmark_accessor(std::size_t num_elems,
                                            compute_iters, StType>(num_elems);
         return {kernel_info.bytes, kernel_info.comps, t.get_time()};
     } else if (dimensionality == 3) {
-        std::array<gko::acc::size_type, dimensionality> size{
+        constexpr int local_dimensionality = 3;
+        std::array<gko::acc::size_type, local_dimensionality> size{
             {outer_work_iters, inner_work_iters,
              total_threads * inner_work_iters}};
-        std::array<gko::acc::size_type, dimensionality - 1> stride{
+        std::array<gko::acc::size_type, local_dimensionality - 1> stride{
             static_cast<gko::acc::size_type>(grid_.x) * block_.x *
                 inner_work_iters,
             static_cast<gko::acc::size_type>(block_.x)};
         using accessor =
-            gko::acc::reduced_row_major<dimensionality, ArType, StType>;
+            gko::acc::reduced_row_major<local_dimensionality, ArType, StType>;
         using range = gko::acc::range<accessor>;
         auto acc = range(size, data_ptr, stride);
 
@@ -241,7 +242,7 @@ kernel_runtime_info run_benchmark_accessor(std::size_t num_elems,
         return {kernel_info.bytes, kernel_info.comps, t.get_time()};
     } else {
         throw std::invalid_argument(
-            std::string("Invalid dimensionality value! ") +
+            std::string("Invalid local_dimensionality value! ") +
             std::to_string(dimensionality) + " is not supported!");
     }
 }
@@ -265,11 +266,13 @@ kernel_runtime_info run_benchmark_frsz(
         std::cerr << "Block is expected to only have x-dimension!\n";
     }
 
+    FrszCompressor frsz(data_ptr, num_elems);
+
     timer t;
     t.start();
     benchmark_frsz_kernel<block_size, outer_work_iters, inner_work_iters,
                           compute_iters, FrszCompressor>
-        <<<grid_, block_>>>(data_ptr, input, num_elems);
+        <<<grid_, block_>>>(frsz, input, num_elems);
     t.stop();
     auto kernel_info =
         get_frsz_kernel_info<outer_work_iters, inner_work_iters, compute_iters,

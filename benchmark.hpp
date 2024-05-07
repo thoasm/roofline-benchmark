@@ -15,6 +15,7 @@
 #include "benchmark_info.hpp"
 #include "config.hpp"
 #include "exec_helper.hpp"
+#include "frsz2.hpp"
 
 #if ROOFLINE_ARCHITECTURE == ROOFLINE_ARCHITECTURE_CUDA
 #include "cuda/benchmark_cuda.cuh"
@@ -58,6 +59,8 @@ enum class Precision {
     AccessorReduced,
     AccessorPosit,
     Frsz2_16,
+    Frsz2_21,
+    Frsz2_24,
     Frsz2_32
 };
 
@@ -114,8 +117,10 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
         std::conditional_t<std::is_same<T, double>::value, gko::acc::posit32_2,
                            std::conditional_t<std::is_same<T, float>::value,
                                               gko::acc::posit16_2, T>>;
-    using frsz_16 = frsz::frsz2_compressor<16, 32, double, std::int16_t>;
-    using frsz_32 = frsz::frsz2_compressor<32, 32, double, std::int16_t>;
+    using frsz_16 = frsz::frsz2_compressor<16, 32, double>;
+    using frsz_21 = frsz::frsz2_compressor<21, 32, double>;
+    using frsz_24 = frsz::frsz2_compressor<24, 32, double>;
+    using frsz_32 = frsz::frsz2_compressor<32, 32, double>;
     auto lower_ptr = data.template get<lower_precision>();
     auto posit_ptr = data.template get<posit_precision>();
     auto byte_ptr = data.template get<std::uint8_t>();
@@ -134,6 +139,12 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
     };
     auto run_set_data_frsz16 = [&]() {
         return set_frsz2_data<frsz_16>(num_elems, byte_ptr, seed, rng);
+    };
+    auto run_set_data_frsz21 = [&]() {
+        return set_frsz2_data<frsz_21>(num_elems, byte_ptr, seed, rng);
+    };
+    auto run_set_data_frsz24 = [&]() {
+        return set_frsz2_data<frsz_24>(num_elems, byte_ptr, seed, rng);
     };
     auto run_set_data_frsz32 = [&]() {
         return set_frsz2_data<frsz_32>(num_elems, byte_ptr, seed, rng);
@@ -164,6 +175,14 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
         return run_benchmark_frsz<frsz_16, outer_work_iters, inner_work_iters,
                                   compute_iters>(num_elems, byte_ptr, input);
     };
+    auto run_frsz21_kernel = [&]() {
+        return run_benchmark_frsz<frsz_21, outer_work_iters, inner_work_iters,
+                                  compute_iters>(num_elems, byte_ptr, input);
+    };
+    auto run_frsz24_kernel = [&]() {
+        return run_benchmark_frsz<frsz_24, outer_work_iters, inner_work_iters,
+                                  compute_iters>(num_elems, byte_ptr, input);
+    };
     auto run_frsz32_kernel = [&]() {
         return run_benchmark_frsz<frsz_32, outer_work_iters, inner_work_iters,
                                   compute_iters>(num_elems, byte_ptr, input);
@@ -171,7 +190,8 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
 
     // auto i_input = static_cast<std::int32_t>(input);
     time_series t_series;
-    if (prec == Precision::Pointer) {
+    switch (prec) {
+    case Precision::Pointer:
         run_set_data();
         synchronize();
 
@@ -195,7 +215,8 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
             t_series.add_time(res.runtime_ms);
             synchronize();
         }
-    } else if (prec == Precision::AccessorKeep) {
+        break;
+    case Precision::AccessorKeep:
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
                          ", " + type_to_string<T>::get_short() + ", " +
                          type_to_string<T>::get_short() + ">";
@@ -210,7 +231,8 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
             t_series.add_time(res.runtime_ms);
             synchronize();
         }
-    } else if (prec == Precision::AccessorReduced) {
+        break;
+    case Precision::AccessorReduced:
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
                          ", " + type_to_string<T>::get_short() + ", " +
                          type_to_string<lower_precision>::get_short() + ">";
@@ -226,7 +248,8 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
             t_series.add_time(res.runtime_ms);
             synchronize();
         }
-    } else if (prec == Precision::AccessorPosit) {
+        break;
+    case Precision::AccessorPosit:
         info.precision = std::string("Ac<") + std::to_string(dimensionality) +
                          ", " + type_to_string<T>::get_short() + ", " +
                          type_to_string<posit_precision>::get_short() + ">";
@@ -242,7 +265,8 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
             t_series.add_time(res.runtime_ms);
             synchronize();
         }
-    } else if (prec == Precision::Frsz2_16) {
+        break;
+    case Precision::Frsz2_16:
         info.precision = std::string("frsz2-16");
 
         run_set_data_frsz16();
@@ -256,7 +280,38 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
             t_series.add_time(res.runtime_ms);
             synchronize();
         }
-    } else if (prec == Precision::Frsz2_32) {
+        break;
+    case Precision::Frsz2_21:
+        info.precision = std::string("frsz2-21");
+
+        run_set_data_frsz21();
+        synchronize();
+        // Warmup
+        info.set_kernel_info(run_frsz21_kernel());
+        synchronize();
+
+        for (int i = 0; i < number_runs; ++i) {
+            auto res = run_frsz21_kernel();
+            t_series.add_time(res.runtime_ms);
+            synchronize();
+        }
+        break;
+    case Precision::Frsz2_24:
+        info.precision = std::string("frsz2-24");
+
+        run_set_data_frsz24();
+        synchronize();
+        // Warmup
+        info.set_kernel_info(run_frsz24_kernel());
+        synchronize();
+
+        for (int i = 0; i < number_runs; ++i) {
+            auto res = run_frsz24_kernel();
+            t_series.add_time(res.runtime_ms);
+            synchronize();
+        }
+        break;
+    case Precision::Frsz2_32:
         info.precision = std::string("frsz2-32");
 
         run_set_data_frsz32();
@@ -270,7 +325,8 @@ benchmark_info run_benchmark(std::size_t num_elems, memory& data, unsigned seed,
             t_series.add_time(res.runtime_ms);
             synchronize();
         }
-    } else {
+        break;
+    default:
         info.precision = "error";
     }
     info.time_ms = t_series.get_time();

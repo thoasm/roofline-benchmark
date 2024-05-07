@@ -135,7 +135,7 @@ int main()
 {
     using i_type = std::int32_t;
 
-    /*
+    //*
     constexpr std::size_t num_elems = 256 * 1024 * 1024;
     constexpr type_list<v_type<double, Precision::Pointer>,
                         v_type<double, Precision::AccessorKeep>,
@@ -147,6 +147,8 @@ int main()
                         v_type<int, Precision::Pointer>,
                         v_type<int, Precision::AccessorReduced>,
                         v_type<double, Precision::Frsz2_16>,
+                        v_type<double, Precision::Frsz2_21>,
+                        v_type<double, Precision::Frsz2_24>,
                         v_type<double, Precision::Frsz2_32>>
         type_list;
     constexpr val_list<i_type, 1, 4> outer_list;
@@ -163,6 +165,8 @@ int main()
                         // v_type<double, Precision::AccessorReduced>,
                         // v_type<double, Precision::AccessorPosit>,
                         v_type<double, Precision::Frsz2_16>,
+                        v_type<double, Precision::Frsz2_21>,
+                        v_type<double, Precision::Frsz2_24>,
                         v_type<double, Precision::Frsz2_32>
                         // , v_type<float, Precision::Pointer>,
                         // v_type<float, Precision::AccessorKeep>,
