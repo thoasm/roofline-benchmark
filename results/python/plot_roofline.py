@@ -45,9 +45,10 @@ plot_info["h100"] = {
         "peak_fp32": 51000.0,
         "peak_fp16": 1513000.0,
         "peak_bw": 2000.0,
-        "file": "../2024-03-15_H100_hexane.csv",
+        #"file": "../2024-03-15_H100_hexane.csv",
+        "file": "../2024-06-04_1150_H100_hexane_frsz.csv",
         "prefix": "h100_",
-        "filter": filt_lambda_48,
+        "filter": filt_lambda_14,
         }
 plot_info["a100"] = {
         "peak_fp64": 9746.0,
@@ -239,7 +240,13 @@ LineWidth = 1
 MarkerSize = 8
 
 
-precisions_to_print = ("double", "float", "Ac<3, d, d>", "Ac<3, d, f>", "Ac<3, d, p32>", "Ac<3, f, p16>", "frsz2-16", "frsz2-32")
+precisions_to_print = ("double",
+        "float",
+        "Ac<3, d, d>", "Ac<1, d, d>",
+        "Ac<3, d, f>", "Ac<1, d, f>",
+        #"Ac<3, d, p32>", "Ac<1, d, p32>",
+        #"Ac<3, f, p16>", "Ac<1, f, p16>",
+        "frsz2-32")
 precision_details = {
         "double": {
             "marker": 'X',
@@ -282,6 +289,10 @@ precision_details = {
             "label": "frsz2-32",
             },
         }
+precision_details["Ac<1, d, d>"] = precision_details["Ac<3, d, d>"]
+precision_details["Ac<1, d, f>"] = precision_details["Ac<3, d, f>"]
+precision_details["Ac<1, d, p32>"] = precision_details["Ac<3, d, p32>"]
+precision_details["Ac<1, f, p16>"] = precision_details["Ac<3, f, p16>"]
 
 
 def create_fig_ax():
