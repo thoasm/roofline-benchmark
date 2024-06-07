@@ -246,7 +246,7 @@ precisions_to_print = ("double",
         "Ac<3, d, f>", "Ac<1, d, f>",
         #"Ac<3, d, p32>", "Ac<1, d, p32>",
         #"Ac<3, f, p16>", "Ac<1, f, p16>",
-        "frsz2-32")
+        "frsz2-16", "frsz2-21", "frsz2-32")
 precision_details = {
         "double": {
             "marker": 'X',
@@ -282,6 +282,11 @@ precision_details = {
             "marker": 'v',
             "color": mybrown,
             "label": "frsz2-16",
+            },
+        "frsz2-21": {
+            "marker": '1',
+            "color": mydarkgreen,
+            "label": "frsz2-21",
             },
         "frsz2-32": {
             "marker": 'd',
