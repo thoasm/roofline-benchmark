@@ -251,22 +251,22 @@ precision_details = {
         "double": {
             "marker": 'X',
             "color": mygreen,
-            "label": "fp64",
+            "label": "float64",
             },
         "float": {
             "marker": 'P',
             "color": myblue,
-            "label": "fp32",
+            "label": "float32",
             },
         "Ac<3, d, d>": {
             "marker": 'x',
             "color": myorange,
-            "label": "Accessor<fp64, fp64>",
+            "label": "Accessor<float64>",
             },
         "Ac<3, d, f>": {
             "marker": '+',
             "color": myyellow,
-            "label": "Accessor<fp64, fp32>",
+            "label": "Accessor<float32>",
             },
         "Ac<3, d, p32>": {
             "marker": 'D',
@@ -281,17 +281,17 @@ precision_details = {
         "frsz2-16": {
             "marker": 'v',
             "color": mybrown,
-            "label": "frsz2-16",
+            "label": "Accessor<frsz2_16>",
             },
         "frsz2-21": {
             "marker": '1',
             "color": mydarkgreen,
-            "label": "frsz2-21",
+            "label": "Accessor<frsz2_21>",
             },
         "frsz2-32": {
             "marker": 'd',
             "color": mycyan,
-            "label": "frsz2-32",
+            "label": "Accessor<frsz2_32>",
             },
         }
 precision_details["Ac<1, d, d>"] = precision_details["Ac<3, d, d>"]
@@ -471,7 +471,7 @@ if __name__ == "__main__":
             ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
                     color=fp32_color, label="Peak fp32 performance")
 
-        add_table(ax, plot_data, "GOPS", "Peak GFLOP/s", lambda x: "{:,}".format(round(max(x))))
+        #add_table(ax, plot_data, "GOPS", "Peak GFLOP/s", lambda x: "{:,}".format(round(max(x))))
         ax.set_xlabel("Arithmetic Intensity [FLOP/Value]")
         ax.set_ylabel("Compute Performance [GFLOP/s]")
         #ax.legend(loc="best")
