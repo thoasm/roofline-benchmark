@@ -236,7 +236,7 @@ mydarkgreen   = (0.4660 / dark_mod, 0.6740 / dark_mod, 0.1880 / dark_mod);
 mydarkblue    = (0, 0.4470 / dark_mod, 0.7410 / dark_mod);
 
 ### Other globals
-LineWidth = 1
+LineWidth = 1.5
 MarkerSize = 8
 
 
@@ -261,37 +261,37 @@ precision_details = {
         "Ac<3, d, d>": {
             "marker": 'x',
             "color": myorange,
-            "label": "Accessor<float64>",
+            "label": "Acc<float64>",
             },
         "Ac<3, d, f>": {
             "marker": '+',
             "color": myyellow,
-            "label": "Accessor<float32>",
+            "label": "Acc<float32>",
             },
         "Ac<3, d, p32>": {
             "marker": 'D',
             "color": mymagenta,
-            "label": "Accessor<fp64, posit32>",
+            "label": "Acc<fp64, posit32>",
             },
         "Ac<3, f, p16>": {
             "marker": 'o',
             "color": myblack,
-            "label": "Accessor<fp32, posit16>",
+            "label": "Acc<fp32, posit16>",
             },
         "frsz2-16": {
-            "marker": 'v',
+            "marker": '1',
             "color": mybrown,
-            "label": "Accessor<frsz2_16>",
+            "label": "Acc<frsz2_16>",
             },
         "frsz2-21": {
-            "marker": '1',
+            "marker": 'd',
             "color": mydarkgreen,
-            "label": "Accessor<frsz2_21>",
+            "label": "Acc<frsz2_21>",
             },
         "frsz2-32": {
-            "marker": 'd',
+            "marker": '3',
             "color": mycyan,
-            "label": "Accessor<frsz2_32>",
+            "label": "Acc<frsz2_32>",
             },
         }
 precision_details["Ac<1, d, d>"] = precision_details["Ac<3, d, d>"]
@@ -305,7 +305,8 @@ def create_fig_ax():
     Creates a tuple of figure and axis for future plots.
     The size, the visibility of the grid and the log-scale of x and y is preset
     """
-    fig = Figure(figsize=(10, 4)) # Properly garbage collected
+    #fig = Figure(figsize=(10, 4)) # Properly garbage collected
+    fig = Figure(figsize=(6, 3)) # Properly garbage collected
     ax = fig.add_subplot()
     #fig, ax = plt.subplots(figsize=(10, 4)) # NOT garbage collected!
     grid_minor_color = (.9, .9, .9)
@@ -323,11 +324,11 @@ def plot_figure(fig, file_name, plot_prefix):
 
     file_path = plot_folder + plot_prefix + file_name
     p_bbox = "tight"
-    p_pad = 0
+    p_pad = 0.01
     p_dpi = 300  # Only useful for non-scalable formats
     with PdfPages(file_path+".pdf") as export_pdf:
         export_pdf.savefig(fig, dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad)
-    fig.savefig(file_path+".svg", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="svg")
+    #fig.savefig(file_path+".svg", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="svg")
     #fig.savefig(file_path+".png", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="png")
 
 
@@ -427,7 +428,7 @@ if __name__ == "__main__":
         ax.set_xlabel("Arithmetic Intensity [FLOP/Byte]")
         ax.set_ylabel("Bandwidth [GB/s]")
         #ax.legend(loc="best")
-        ax.legend(loc="lower left")
+        ax.legend(loc="lower left", ncols=1, fontsize="small")
         plot_figure(fig, "roofline_bandwidth_pai_d3", info["prefix"])
 
 
@@ -439,7 +440,7 @@ if __name__ == "__main__":
 
         ax.set_xlabel("Arithmetic Intensity [FLOP/Value]")
         ax.set_ylabel("Bandwidth [GB/s]")
-        ax.legend(loc="lower left")
+        ax.legend(loc="lower left", ncols=1, fontsize="small")
         plot_figure(fig, "roofline_bandwidth_pv_d3", info["prefix"])
 
 
@@ -448,16 +449,16 @@ if __name__ == "__main__":
 
         if "peak_fp64" in info and info["peak_fp64"] > 0:
             ax.axhline(info["peak_fp64"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=fp64_color, label="Peak fp64 performance")
+                    color=fp64_color, label="Peak fp64 perf.")
         if "peak_fp32" in info and info["peak_fp32"] > 0:
-            ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=fp32_color, label="Peak fp32 performance")
+            ax.axhline(info["peak_fp32"], linestyle='-.', marker='', linewidth=LineWidth,
+                    color=fp32_color, label="Peak fp32 perf.")
 
         #add_table(ax, plot_data, "GOPS", "Peak GFLOP/s", lambda x: "{:,}".format(round(max(x))))
         ax.set_xlabel("Arithmetic Intensity [FLOP/Byte]")
         ax.set_ylabel("Compute Performance [GFLOP/s]")
         #ax.legend(loc="best")
-        ax.legend(loc="lower right")
+        ax.legend(loc="lower right", ncols=1, fontsize="small")
         plot_figure(fig, "roofline_performance_pai_d3", info["prefix"])
 
 
@@ -466,14 +467,14 @@ if __name__ == "__main__":
 
         if "peak_fp64" in info and info["peak_fp64"] > 0:
             ax.axhline(info["peak_fp64"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=fp64_color, label="Peak fp64 performance")
+                    color=fp64_color, label="Peak fp64 perf.")
         if "peak_fp32" in info and info["peak_fp32"] > 0:
-            ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=fp32_color, label="Peak fp32 performance")
+            ax.axhline(info["peak_fp32"], linestyle='-.', marker='', linewidth=LineWidth,
+                    color=fp32_color, label="Peak fp32 perf.")
 
         #add_table(ax, plot_data, "GOPS", "Peak GFLOP/s", lambda x: "{:,}".format(round(max(x))))
         ax.set_xlabel("Arithmetic Intensity [FLOP/Value]")
         ax.set_ylabel("Compute Performance [GFLOP/s]")
         #ax.legend(loc="best")
-        ax.legend(loc="lower right")
+        ax.legend(loc="lower right", ncols=1, fontsize="small")
         plot_figure(fig, "roofline_performance_pv_d3", info["prefix"])
