@@ -133,14 +133,14 @@ plot_info["arm_xavier"] = {
 """
 
 plot_list = [
-        "mi100",
-        "radeon7",
+        #"mi100",
+        #"radeon7",
         "h100",
-        "a100",
-        "v100",
-        "bwuni-rw",
-        "AMD-7742-rw",
-        "AMD-7742-ro",
+        #"a100",
+        #"v100",
+        #"bwuni-rw",
+        #"AMD-7742-rw",
+        #"AMD-7742-ro",
         #"arm_xavier",
         ]
 
@@ -242,11 +242,12 @@ MarkerSize = 8
 
 precisions_to_print = ("double",
         "float",
-        "Ac<3, d, d>", "Ac<1, d, d>",
-        "Ac<3, d, f>", "Ac<1, d, f>",
+        #"Ac<3, d, d>", "Ac<1, d, d>",
+        #"Ac<3, d, f>", "Ac<1, d, f>",
         #"Ac<3, d, p32>", "Ac<1, d, p32>",
         #"Ac<3, f, p16>", "Ac<1, f, p16>",
-        "frsz2-16", "frsz2-21", "frsz2-32")
+        "frsz2-16", "frsz2-21", "frsz2-32"
+        )
 precision_details = {
         "double": {
             "marker": 'X',
@@ -284,13 +285,13 @@ precision_details = {
             "label": "Acc<frsz2_16>",
             },
         "frsz2-21": {
-            "marker": 'd',
-            "color": mydarkgreen,
+            "marker": '+',
+            "color": myorange,
             "label": "Acc<frsz2_21>",
             },
         "frsz2-32": {
             "marker": '3',
-            "color": mycyan,
+            "color": myyellow,
             "label": "Acc<frsz2_32>",
             },
         }
@@ -328,7 +329,7 @@ def plot_figure(fig, file_name, plot_prefix):
     p_dpi = 300  # Only useful for non-scalable formats
     with PdfPages(file_path+".pdf") as export_pdf:
         export_pdf.savefig(fig, dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad)
-    #fig.savefig(file_path+".svg", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="svg")
+    fig.savefig(file_path+".svg", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="svg")
     #fig.savefig(file_path+".png", dpi=p_dpi, bbox_inches=p_bbox, pad_inches=p_pad, format="png")
 
 
