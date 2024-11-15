@@ -10,6 +10,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 plot_info = {}
 
 plot_folder = "./plots/"
+filt_lambda_14 = lambda x : int(x[i_dict["oiters"]]) == 1 and int(x[i_dict["iiters"]]) == 4
 filt_lambda_48 = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 8
 filt_lambda_18 = lambda x : int(x[i_dict["oiters"]]) == 1 and int(x[i_dict["iiters"]]) == 8
 filt_lambda_416 = lambda x : int(x[i_dict["oiters"]]) == 4 and int(x[i_dict["iiters"]]) == 16
@@ -60,6 +61,16 @@ plot_info["v100"] = {
         "file": "../20220124_1931_V100_Summit.csv",
         "prefix": "v100_",
         "filter": filt_lambda_48,
+        }
+plot_info["h100"] = {
+        "peak_fp64": 26000.0,
+        "peak_fp32": 51000.0,
+        "peak_fp16": 1513000.0,
+        "peak_bw": 2000.0,
+        #"file": "../2024-03-15_H100_hexane.csv",
+        "file": "../2024-06-04_1150_H100_hexane_frsz_.csv",
+        "prefix": "h100_",
+        "filter": filt_lambda_14,
         }
 plot_info["gh200"] = {
         "peak_fp64": 34000.0,
@@ -136,6 +147,7 @@ plot_list = [
         "radeon7",
         "a100",
         "v100",
+        "h100",
         "gh200",
         "bwuni-rw",
         "AMD-7742-rw",
@@ -239,7 +251,10 @@ LineWidth = 1
 MarkerSize = 8
 
 
-precisions_to_print = ("double", "float", "Ac<3, d, d>", "Ac<3, d, f>") #, "Ac<3, d, p32>", "Ac<3, f, p16>")
+precisions_to_print = ("double", "float",
+                       # "Ac<3, d, d>", "Ac<3, d, f>",
+                       # "Ac<3, d, p32>", "Ac<3, f, p16>",
+                       )
 precision_details = {
         "double": {
             "marker": 'X',
@@ -362,6 +377,57 @@ if __name__ == "__main__":
     if not os.path.exists(plot_folder):
         os.makedirs(plot_folder)
 
+    combine_list = ["a100", "h100", "gh200"]
+    combine_details = {
+        "a100": {
+            "label_pref": "A100",
+            "double": {
+                "marker": "",
+                "color": myorange,
+                "label": "fp64",
+                "lstyle": "solid",
+                },
+            "float": {
+                "marker": "",
+                "color": myorange,
+                "label": "fp32",
+                "lstyle": "dashed",
+                },
+            },
+        "h100": {
+            "label_pref": "H100",
+            "double": {
+                "marker": "",
+                "color": myred,
+                "label": "fp64",
+                "lstyle": "solid",
+                },
+            "float": {
+                "marker": "",
+                "color": myred,
+                "label": "fp32",
+                "lstyle": "dashed",
+                },
+             },
+        "gh200": {
+            "label_pref": "GH200",
+            "double": {
+                "marker": "",
+                "color": myblue,
+                "label": "fp64",
+                "lstyle": "solid",
+                },
+            "float": {
+                "marker": "",
+                "color": myblue,
+                "label": "fp32",
+                "lstyle": "dashed",
+                },
+            }
+        }
+    c_pv_fig, c_pv_ax = create_fig_ax()
+    c_pb_fig, c_pb_ax = create_fig_ax()
+
     for device in plot_list:
         info = plot_info[device]
         data_dict, i_dict = read_csv(info["file"])
@@ -455,3 +521,29 @@ if __name__ == "__main__":
         #ax.legend(loc="best")
         ax.legend(loc="lower right")
         plot_figure(fig, "roofline_performance_pv_d3", info["prefix"])
+        
+        # Plot the combined plot as well
+        if device in combine_list:
+            for prec in ["double", "float"]:
+                c_pv_ax.plot(plot_data[prec]["OP_pv"], plot_data[prec]["GOPS"],
+                         label=combine_details[device]["label_pref"]+" "+combine_details[device][prec]["label"],
+                         marker=combine_details[device][prec]["marker"],
+                         color=combine_details[device][prec]["color"],
+                         linewidth=LineWidth, markersize=MarkerSize,
+                         linestyle=combine_details[device][prec]["lstyle"])
+                c_pb_ax.plot(plot_data[prec]["OP_pb"], plot_data[prec]["GOPS"],
+                         label=combine_details[device]["label_pref"]+" "+combine_details[device][prec]["label"],
+                         marker=combine_details[device][prec]["marker"],
+                         color=combine_details[device][prec]["color"],
+                         linewidth=LineWidth, markersize=MarkerSize,
+                         linestyle=combine_details[device][prec]["lstyle"])
+    c_pv_ax.set_ylabel("Compute Performance [GFLOP/s]")
+    c_pv_ax.legend(loc="lower right")
+    c_pv_ax.set_xlabel("Arithmetic Intensity [FLOP/Byte]")
+    #cax.set_xlabel("Arithmetic Intensity [FLOP/Value]")
+    #plot_figure(cfig, "roofline_performance_pv", "combined")
+    plot_figure(c_pv_fig, "roofline_performance_pai", "combined")
+    c_pb_ax.set_ylabel("Compute Performance [GFLOP/s]")
+    c_pb_ax.legend(loc="lower right")
+    c_pb_ax.set_xlabel("Arithmetic Intensity [FLOP/Value]")
+    plot_figure(c_pb_fig, "roofline_performance_pv", "combined")
