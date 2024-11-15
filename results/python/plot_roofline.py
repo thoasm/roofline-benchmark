@@ -61,6 +61,15 @@ plot_info["v100"] = {
         "prefix": "v100_",
         "filter": filt_lambda_48,
         }
+plot_info["gh200"] = {
+        "peak_fp64": 34000.0,
+        "peak_fp32": 67000.0,
+        "peak_fp16": 77970.0,
+        "peak_bw": 4000.0,
+        "file": "../20241115_1530_GH200.csv",
+        "prefix": "gh200_",
+        "filter": filt_lambda_18,
+        }
 plot_info["3900X"] = {
         "peak_fp64": 792.0, # Estimated with https://github.com/Mysticial/Flops
         "peak_fp32": 1579.0, # same as above
@@ -127,6 +136,7 @@ plot_list = [
         "radeon7",
         "a100",
         "v100",
+        "gh200",
         "bwuni-rw",
         "AMD-7742-rw",
         "AMD-7742-ro",
@@ -229,7 +239,7 @@ LineWidth = 1
 MarkerSize = 8
 
 
-precisions_to_print = ("double", "float", "Ac<3, d, d>", "Ac<3, d, f>", "Ac<3, d, p32>", "Ac<3, f, p16>")
+precisions_to_print = ("double", "float", "Ac<3, d, d>", "Ac<3, d, f>") #, "Ac<3, d, p32>", "Ac<3, f, p16>")
 precision_details = {
         "double": {
             "marker": 'X',
@@ -244,22 +254,26 @@ precision_details = {
         "Ac<3, d, d>": {
             "marker": 'x',
             "color": myorange,
-            "label": "Accessor<fp64, fp64>",
+            #"label": "Accessor<fp64, fp64>",
+            "label": "Acc<float64>",
             },
         "Ac<3, d, f>": {
             "marker": '+',
             "color": myyellow,
-            "label": "Accessor<fp64, fp32>",
+            #"label": "Accessor<fp64, fp32>",
+            "label": "Acc<float32>",
             },
         "Ac<3, d, p32>": {
             "marker": 'D',
             "color": mymagenta,
-            "label": "Accessor<fp64, posit32>",
+            #"label": "Accessor<fp64, posit32>",
+            "label": "Acc<posit32>",
             },
         "Ac<3, f, p16>": {
             "marker": 'o',
             "color": myblack,
-            "label": "Accessor<fp32, posit16>",
+            #"label": "Accessor<fp32, posit16>",
+            "label": "Acc<posit16>",
             },
         }
 
@@ -314,6 +328,8 @@ def plot_for_all(ax, data, x_key, y_key):
     """
 
 def add_table(ax, plot_data, value_key, colLabel, value_lambda):
+    # Don't show the table
+    return
     table_row_labels = []
     table_vals = []
     for prec in precisions_to_print:
@@ -410,10 +426,10 @@ if __name__ == "__main__":
 
         if "peak_fp64" in info and info["peak_fp64"] > 0:
             ax.axhline(info["peak_fp64"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=fp64_color, label="Peak fp64 performance")
+                    color=fp64_color, label="Peak fp64 perf.")
         if "peak_fp32" in info and info["peak_fp32"] > 0:
             ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=fp32_color, label="Peak fp32 performance")
+                    color=fp32_color, label="Peak fp32 perf.")
 
         add_table(ax, plot_data, "GOPS", "Peak GFLOP/s", lambda x: "{:,}".format(round(max(x))))
         ax.set_xlabel("Arithmetic Intensity [FLOP/Byte]")
@@ -428,10 +444,10 @@ if __name__ == "__main__":
 
         if "peak_fp64" in info and info["peak_fp64"] > 0:
             ax.axhline(info["peak_fp64"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=fp64_color, label="Peak fp64 performance")
+                    color=fp64_color, label="Peak fp64 perf.")
         if "peak_fp32" in info and info["peak_fp32"] > 0:
             ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
-                    color=fp32_color, label="Peak fp32 performance")
+                    color=fp32_color, label="Peak fp32 perf.")
 
         add_table(ax, plot_data, "GOPS", "Peak GFLOP/s", lambda x: "{:,}".format(round(max(x))))
         ax.set_xlabel("Arithmetic Intensity [FLOP/Value]")
