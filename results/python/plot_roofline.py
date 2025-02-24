@@ -239,7 +239,7 @@ LineWidth = 1
 MarkerSize = 8
 
 
-precisions_to_print = ("double", "float", "Ac<3, d, d>", "Ac<3, d, f>") #, "Ac<3, d, p32>", "Ac<3, f, p16>")
+precisions_to_print = ("double", "float", "Ac<3, d, d>", "Ac<3, d, f>", "Ac<3, d, p32>", "Ac<3, f, p16>")
 precision_details = {
         "double": {
             "marker": 'X',
@@ -255,13 +255,13 @@ precision_details = {
             "marker": 'x',
             "color": myorange,
             #"label": "Accessor<fp64, fp64>",
-            "label": "Acc<float64>",
+            "label": "Acc<fp64>",
             },
         "Ac<3, d, f>": {
             "marker": '+',
             "color": myyellow,
             #"label": "Accessor<fp64, fp32>",
-            "label": "Acc<float32>",
+            "label": "Acc<fp32>",
             },
         "Ac<3, d, p32>": {
             "marker": 'D',
