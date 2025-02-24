@@ -244,9 +244,9 @@ precisions_to_print = ("double",
         "float",
         #"Ac<3, d, d>", "Ac<1, d, d>",
         "Ac<3, d, f>", "Ac<1, d, f>",
-        "Ac<3, d, p32>", "Ac<1, d, p32>",
-        "Ac<3, f, p16>", "Ac<1, f, p16>",
-        #"frsz2-16", "frsz2-21", "frsz2-32"
+        #"Ac<3, d, p32>", "Ac<1, d, p32>",
+        #"Ac<3, f, p16>", "Ac<1, f, p16>",
+        "frsz2-16", "frsz2-21", "frsz2-32"
         )
 precision_details = {
         "double": {
@@ -285,13 +285,13 @@ precision_details = {
             "label": "Acc<fp64, frsz2_16>",
             },
         "frsz2-21": {
-            "marker": '+',
-            "color": myorange,
+            "marker": 'd',
+            "color": myblack,
             "label": "Acc<fp64, frsz2_21>",
             },
         "frsz2-32": {
             "marker": '3',
-            "color": myyellow,
+            "color": mycyan,
             "label": "Acc<fp64, frsz2_32>",
             },
         }
