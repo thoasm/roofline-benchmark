@@ -239,7 +239,9 @@ LineWidth = 1
 MarkerSize = 8
 
 
-precisions_to_print = ("double", "float", "Ac<3, d, d>", "Ac<3, d, f>", "Ac<3, d, p32>", "Ac<3, f, p16>")
+precisions_to_print = ("double", "float", #"Ac<3, d, d>",
+                       "Ac<3, d, f>",
+                       "Ac<3, d, p32>", "Ac<3, f, p16>")
 precision_details = {
         "double": {
             "marker": 'X',
@@ -255,25 +257,25 @@ precision_details = {
             "marker": 'x',
             "color": myorange,
             #"label": "Accessor<fp64, fp64>",
-            "label": "Acc<fp64>",
+            "label": "Acc<fp64, fp64>",
             },
         "Ac<3, d, f>": {
             "marker": '+',
             "color": myyellow,
             #"label": "Accessor<fp64, fp32>",
-            "label": "Acc<fp32>",
+            "label": "Acc<fp64, fp32>",
             },
         "Ac<3, d, p32>": {
             "marker": 'D',
             "color": mymagenta,
-            #"label": "Accessor<fp64, posit32>",
-            "label": "Acc<posit32>",
+            "label": "Acc<fp64, posit32>",
+            #"label": "Acc<posit32>",
             },
         "Ac<3, f, p16>": {
             "marker": 'o',
             "color": myblack,
-            #"label": "Accessor<fp32, posit16>",
-            "label": "Acc<posit16>",
+            "label": "Acc<fp32, posit16>",
+            #"label": "Acc<posit16>",
             },
         }
 
@@ -446,7 +448,7 @@ if __name__ == "__main__":
             ax.axhline(info["peak_fp64"], linestyle='--', marker='', linewidth=LineWidth,
                     color=fp64_color, label="Peak fp64 perf.")
         if "peak_fp32" in info and info["peak_fp32"] > 0:
-            ax.axhline(info["peak_fp32"], linestyle='--', marker='', linewidth=LineWidth,
+            ax.axhline(info["peak_fp32"], linestyle='-.', marker='', linewidth=LineWidth,
                     color=fp32_color, label="Peak fp32 perf.")
 
         add_table(ax, plot_data, "GOPS", "Peak GFLOP/s", lambda x: "{:,}".format(round(max(x))))
