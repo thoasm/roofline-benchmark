@@ -236,38 +236,38 @@ mydarkgreen   = (0.4660 / dark_mod, 0.6740 / dark_mod, 0.1880 / dark_mod);
 mydarkblue    = (0, 0.4470 / dark_mod, 0.7410 / dark_mod);
 
 ### Other globals
-LineWidth = 1.5
+LineWidth = 1
 MarkerSize = 8
 
 
 precisions_to_print = ("double",
         "float",
         #"Ac<3, d, d>", "Ac<1, d, d>",
-        #"Ac<3, d, f>", "Ac<1, d, f>",
-        #"Ac<3, d, p32>", "Ac<1, d, p32>",
-        #"Ac<3, f, p16>", "Ac<1, f, p16>",
-        "frsz2-16", "frsz2-21", "frsz2-32"
+        "Ac<3, d, f>", "Ac<1, d, f>",
+        "Ac<3, d, p32>", "Ac<1, d, p32>",
+        "Ac<3, f, p16>", "Ac<1, f, p16>",
+        #"frsz2-16", "frsz2-21", "frsz2-32"
         )
 precision_details = {
         "double": {
             "marker": 'X',
             "color": mygreen,
-            "label": "float64",
+            "label": "fp64",
             },
         "float": {
             "marker": 'P',
             "color": myblue,
-            "label": "float32",
+            "label": "fp32",
             },
         "Ac<3, d, d>": {
             "marker": 'x',
             "color": myorange,
-            "label": "Acc<float64>",
+            "label": "Acc<fp64, fp64>",
             },
         "Ac<3, d, f>": {
             "marker": '+',
             "color": myyellow,
-            "label": "Acc<float32>",
+            "label": "Acc<fp64, fp32>",
             },
         "Ac<3, d, p32>": {
             "marker": 'D',
@@ -282,17 +282,17 @@ precision_details = {
         "frsz2-16": {
             "marker": '1',
             "color": mybrown,
-            "label": "Acc<frsz2_16>",
+            "label": "Acc<fp64, frsz2_16>",
             },
         "frsz2-21": {
             "marker": '+',
             "color": myorange,
-            "label": "Acc<frsz2_21>",
+            "label": "Acc<fp64, frsz2_21>",
             },
         "frsz2-32": {
             "marker": '3',
             "color": myyellow,
-            "label": "Acc<frsz2_32>",
+            "label": "Acc<fp64, frsz2_32>",
             },
         }
 precision_details["Ac<1, d, d>"] = precision_details["Ac<3, d, d>"]
@@ -306,8 +306,8 @@ def create_fig_ax():
     Creates a tuple of figure and axis for future plots.
     The size, the visibility of the grid and the log-scale of x and y is preset
     """
-    #fig = Figure(figsize=(10, 4)) # Properly garbage collected
-    fig = Figure(figsize=(6, 3)) # Properly garbage collected
+    fig = Figure(figsize=(10, 4)) # Properly garbage collected
+    #fig = Figure(figsize=(6, 3)) # Properly garbage collected
     ax = fig.add_subplot()
     #fig, ax = plt.subplots(figsize=(10, 4)) # NOT garbage collected!
     grid_minor_color = (.9, .9, .9)
@@ -429,7 +429,7 @@ if __name__ == "__main__":
         ax.set_xlabel("Arithmetic Intensity [FLOP/Byte]")
         ax.set_ylabel("Bandwidth [GB/s]")
         #ax.legend(loc="best")
-        ax.legend(loc="lower left", ncols=1, fontsize="small")
+        ax.legend(loc="lower left", ncols=1)
         plot_figure(fig, "roofline_bandwidth_pai_d3", info["prefix"])
 
 
@@ -441,7 +441,7 @@ if __name__ == "__main__":
 
         ax.set_xlabel("Arithmetic Intensity [FLOP/Value]")
         ax.set_ylabel("Bandwidth [GB/s]")
-        ax.legend(loc="lower left", ncols=1, fontsize="small")
+        ax.legend(loc="lower left", ncols=1)
         plot_figure(fig, "roofline_bandwidth_pv_d3", info["prefix"])
 
 
@@ -459,7 +459,7 @@ if __name__ == "__main__":
         ax.set_xlabel("Arithmetic Intensity [FLOP/Byte]")
         ax.set_ylabel("Compute Performance [GFLOP/s]")
         #ax.legend(loc="best")
-        ax.legend(loc="lower right", ncols=1, fontsize="small")
+        ax.legend(loc="lower right", ncols=1)
         plot_figure(fig, "roofline_performance_pai_d3", info["prefix"])
 
 
@@ -477,5 +477,5 @@ if __name__ == "__main__":
         ax.set_xlabel("Arithmetic Intensity [FLOP/Value]")
         ax.set_ylabel("Compute Performance [GFLOP/s]")
         #ax.legend(loc="best")
-        ax.legend(loc="lower right", ncols=1, fontsize="small")
+        ax.legend(loc="lower right", ncols=1)
         plot_figure(fig, "roofline_performance_pv_d3", info["prefix"])
