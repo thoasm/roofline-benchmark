@@ -136,7 +136,7 @@ plot_list = [
         #"mi100",
         #"radeon7",
         "h100",
-        #"a100",
+        "a100",
         #"v100",
         #"bwuni-rw",
         #"AMD-7742-rw",
@@ -245,9 +245,9 @@ precisions_to_print = ("double",
         "float",
         #"Ac<3, d, d>", "Ac<1, d, d>",
         "Ac<3, d, f>", "Ac<1, d, f>",
-        #"Ac<3, d, p32>", "Ac<1, d, p32>",
-        #"Ac<3, f, p16>", "Ac<1, f, p16>",
-        "frsz2-32", "frsz2-21", "frsz2-16",
+        "Ac<3, d, p32>", "Ac<1, d, p32>",
+        "Ac<3, f, p16>", "Ac<1, f, p16>",
+        #"frsz2-32", "frsz2-21", "frsz2-16",
         )
 precision_details = {
         "double": {
