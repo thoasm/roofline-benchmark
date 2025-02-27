@@ -237,6 +237,7 @@ mydarkblue    = (0, 0.4470 / dark_mod, 0.7410 / dark_mod);
 
 ### Other globals
 LineWidth = 1
+PeakLineWidth = 1.5
 MarkerSize = 8
 
 
@@ -246,7 +247,7 @@ precisions_to_print = ("double",
         "Ac<3, d, f>", "Ac<1, d, f>",
         #"Ac<3, d, p32>", "Ac<1, d, p32>",
         #"Ac<3, f, p16>", "Ac<1, f, p16>",
-        "frsz2-16", "frsz2-21", "frsz2-32"
+        "frsz2-32", "frsz2-21", "frsz2-16",
         )
 precision_details = {
         "double": {
@@ -266,33 +267,33 @@ precision_details = {
             },
         "Ac<3, d, f>": {
             "marker": '+',
-            "color": myyellow,
+            "color": myred,
             "label": "Acc<fp64, fp32>",
             },
         "Ac<3, d, p32>": {
-            "marker": 'D',
+            "marker": '3',
             "color": mymagenta,
             "label": "Acc<fp64, posit32>",
             },
         "Ac<3, f, p16>": {
-            "marker": 'o',
-            "color": myblack,
-            "label": "Acc<fp32, posit16>",
-            },
-        "frsz2-16": {
             "marker": '1',
-            "color": mybrown,
-            "label": "Acc<fp64, frsz2_16>",
-            },
-        "frsz2-21": {
-            "marker": 'd',
-            "color": myblack,
-            "label": "Acc<fp64, frsz2_21>",
+            "color": myyellow,
+            "label": "Acc<fp32, posit16>",
             },
         "frsz2-32": {
             "marker": '3',
-            "color": mycyan,
+            "color": mymagenta,
             "label": "Acc<fp64, frsz2_32>",
+            },
+        "frsz2-21": {
+            "marker": '_',
+            "color": myyellow,
+            "label": "Acc<fp64, frsz2_21>",
+            },
+        "frsz2-16": {
+            "marker": '1',
+            "color": mycyan,
+            "label": "Acc<fp64, frsz2_16>",
             },
         }
 precision_details["Ac<1, d, d>"] = precision_details["Ac<3, d, d>"]
@@ -423,7 +424,7 @@ if __name__ == "__main__":
         fig, ax = create_fig_ax()
         plot_for_all(ax, plot_data, "OP_pb", "BW")
         if "peak_bw" in info and info["peak_bw"] > 0:
-            ax.axhline(info["peak_bw"], linestyle='--', marker='', linewidth=LineWidth,
+            ax.axhline(info["peak_bw"], linestyle='--', marker='', linewidth=PeakLineWidth,
                     color=bw_color, label="Peak bandwidth")
 
         ax.set_xlabel("Arithmetic Intensity [FLOP/Byte]")
@@ -436,7 +437,7 @@ if __name__ == "__main__":
         fig, ax = create_fig_ax()
         plot_for_all(ax, plot_data, "OP_pv", "BW")
         if "peak_bw" in info and info["peak_bw"] > 0:
-            ax.axhline(info["peak_bw"], linestyle='--', marker='', linewidth=LineWidth,
+            ax.axhline(info["peak_bw"], linestyle='--', marker='', linewidth=PeakLineWidth,
                     color=bw_color, label="Peak bandwidth")
 
         ax.set_xlabel("Arithmetic Intensity [FLOP/Value]")
@@ -449,10 +450,10 @@ if __name__ == "__main__":
         plot_for_all(ax, plot_data, "OP_pb", "GOPS")
 
         if "peak_fp64" in info and info["peak_fp64"] > 0:
-            ax.axhline(info["peak_fp64"], linestyle='--', marker='', linewidth=LineWidth,
+            ax.axhline(info["peak_fp64"], linestyle='--', marker='', linewidth=PeakLineWidth,
                     color=fp64_color, label="Peak fp64 perf.")
         if "peak_fp32" in info and info["peak_fp32"] > 0:
-            ax.axhline(info["peak_fp32"], linestyle='-.', marker='', linewidth=LineWidth,
+            ax.axhline(info["peak_fp32"], linestyle='-.', marker='', linewidth=PeakLineWidth,
                     color=fp32_color, label="Peak fp32 perf.")
 
         #add_table(ax, plot_data, "GOPS", "Peak GFLOP/s", lambda x: "{:,}".format(round(max(x))))
@@ -467,10 +468,10 @@ if __name__ == "__main__":
         plot_for_all(ax, plot_data, "OP_pv", "GOPS")
 
         if "peak_fp64" in info and info["peak_fp64"] > 0:
-            ax.axhline(info["peak_fp64"], linestyle='--', marker='', linewidth=LineWidth,
+            ax.axhline(info["peak_fp64"], linestyle='--', marker='', linewidth=PeakLineWidth,
                     color=fp64_color, label="Peak fp64 perf.")
         if "peak_fp32" in info and info["peak_fp32"] > 0:
-            ax.axhline(info["peak_fp32"], linestyle='-.', marker='', linewidth=LineWidth,
+            ax.axhline(info["peak_fp32"], linestyle='-.', marker='', linewidth=PeakLineWidth,
                     color=fp32_color, label="Peak fp32 perf.")
 
         #add_table(ax, plot_data, "GOPS", "Peak GFLOP/s", lambda x: "{:,}".format(round(max(x))))
